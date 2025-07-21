@@ -7,53 +7,52 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Serve static files from the "public" directory
 app.use(express.static('public'));
 
-// In-memory storage of connected clients
 const clients = new Map();
 
-// Utility function to generate a random hex color
 function getRandomColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
 }
 
-// WebSocket connection handler
 wss.on('connection', (ws) => {
-  const color = getRandomColor();        // Generate a random color
-  const id = randomUUID();               // Generate a unique ID
-
-  // Store client information in memory
+  const color = getRandomColor();
+  const id = randomUUID();
   clients.set(ws, { id, color, pseudo: null });
 
-  // Send the ID and color to the connected client
   ws.send(JSON.stringify({ type: 'init', id, color }));
 
-  // Handle incoming messages from the client
   ws.on('message', (data) => {
     const msg = JSON.parse(data);
+    const client = clients.get(ws);
 
-    // Handle pseudo submission
+    if (!client) return;
+
     if (msg.type === 'pseudo') {
-      const client = clients.get(ws);
-      if (client) {
-        client.pseudo = msg.pseudo;
+      client.pseudo = msg.pseudo;
+      ws.send(JSON.stringify({ type: 'confirm', pseudo: client.pseudo }));
+      console.log(`Connected: ${client.pseudo} (${client.id})`);
+    }
 
-        console.log(`Client connected: ${client.pseudo} (id: ${client.id}, color: ${client.color})`);
+    if (msg.type === 'chat' && client.pseudo) {
+      const payload = {
+        type: 'chat',
+        pseudo: client.pseudo,
+        color: client.color,
+        message: msg.message,
+      };
 
-        // Optional: send confirmation back to the client
-        ws.send(JSON.stringify({ type: 'confirm', pseudo: msg.pseudo }));
+      for (const other of clients.keys()) {
+        other.send(JSON.stringify(payload));
       }
     }
   });
 
-  // Handle disconnection
   ws.on('close', () => {
     clients.delete(ws);
   });
 });
 
-// Start HTTP + WebSocket server
 server.listen(3000, () => {
   console.log('Server listening on http://localhost:3000');
 });

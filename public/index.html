@@ -1,13 +1,79 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Connexion</title>
+  <title>Chat</title>
+  <style>
+    #container {
+      display: flex;
+      align-items: center;
+      margin-top: 30px;
+      font-family: sans-serif;
+    }
+    #color-box {
+      width: 40px;
+      height: 40px;
+      margin-right: 20px;
+      border: 1px solid #000;
+    }
+    #form {
+      display: flex;
+      flex-direction: column;
+    }
+    #info {
+      margin-bottom: 10px;
+    }
+    #chat {
+      margin-top: 30px;
+      max-width: 600px;
+    }
+    #messages {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 200px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+    .message {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    .chat-color {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      border: 1px solid #000;
+    }
+    #chat-input {
+      display: flex;
+    }
+    #chat-input input {
+      flex: 1;
+      padding: 5px;
+    }
+    #chat-input button {
+      padding: 5px 10px;
+    }
+  </style>
 </head>
 <body>
-  <div id="info"></div>
-  <input type="text" id="pseudo" placeholder="Entrez votre pseudo">
-  <button id="envoyer">Envoyer</button>
+  <div id="container">
+    <div id="color-box"></div>
+    <div id="form">
+      <div id="info">Waiting for server data...</div>
+      <input type="text" id="pseudo" placeholder="Enter your username">
+      <button id="send">Send</button>
+    </div>
+  </div>
+
+  <div id="chat" style="display: none;">
+    <div id="messages"></div>
+    <div id="chat-input">
+      <input type="text" id="message" placeholder="Type a message...">
+      <button id="send-msg">Send</button>
+    </div>
+  </div>
 
   <script src="main.js"></script>
 </body>
