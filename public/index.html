@@ -2,45 +2,72 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Chat</title>
+  <title>Zombie Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+    }
+  </style>
 </head>
-<body class="bg-gray-50 p-6 font-sans">
-  <div class="flex items-center gap-4 mb-8">
-    <div id="color-box" class="w-10 h-10 border"></div>
-    <div id="form" class="flex flex-col">
-      <div id="info" class="mb-2 text-sm text-gray-600">Waiting for server data...</div>
-      <input
-        type="text"
-        id="pseudo"
-        placeholder="Enter your username"
-        class="mb-2 px-2 py-1 border rounded"
-      />
-      <button id="send" class="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
-        Send
-      </button>
-    </div>
+<body class="h-screen w-screen flex font-sans overflow-hidden">
+
+  <!-- Zone de jeu (80%) -->
+  <div id="game-zone" class="w-[80%] bg-gray-100 relative">
+    <!-- Canvas ou contenu du jeu -->
   </div>
 
-  <div id="chat" class="max-w-xl space-y-2" style="display: none;">
-    <div
-      id="messages"
-      class="h-52 overflow-y-auto border p-2 bg-white rounded shadow text-sm"
-    ></div>
-    <div id="chat-input" class="flex gap-2">
-      <input
-        type="text"
-        id="message"
-        placeholder="Type a message..."
-        class="flex-1 px-2 py-1 border rounded"
-      />
-      <button
-        id="send-msg"
-        class="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-      >
-        Send
-      </button>
+  <!-- Zone de chat (20%) -->
+  <div class="w-[20%] h-full flex flex-col bg-white border-l">
+
+    <!-- Haut : zone pseudo + couleur -->
+    <div class="px-4 py-6">
+      <div class="flex items-center gap-4 mb-6">
+        <div id="color-box" class="w-8 h-8 border"></div>
+        <div id="form" class="flex flex-col">
+          <div id="info" class="mb-1 text-xs text-gray-600">Waiting for server data...</div>
+          <input
+            type="text"
+            id="pseudo"
+            placeholder="Enter your username"
+            class="mb-1 px-2 py-1 border rounded"
+          />
+          <button id="send" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+            Send
+          </button>
+        </div>
+      </div>
     </div>
+
+    <!-- Bas : zone chat collée en bas -->
+    <div id="chat" class="flex flex-col justify-between flex-1 px-4 pb-6 space-y-2" style="display: none;">
+      <div
+        id="messages"
+        class="flex-1 overflow-y-auto border p-2 bg-gray-50 rounded shadow text-sm"
+      ></div>
+      <div id="chat-input" class="flex gap-2">
+        <input
+          type="text"
+          id="message"
+          placeholder="Type a message..."
+          class="flex-1 px-2 py-1 border rounded"
+        />
+        <button
+          id="send-msg"
+          class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+
   </div>
 
   <script src="main.js"></script>
