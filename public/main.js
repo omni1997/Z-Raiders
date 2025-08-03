@@ -20,6 +20,7 @@ class GameScene extends Phaser.Scene {
   create() {
     this.cursors = this.input.keyboard.createCursorKeys();
     gameScene = this;
+    this.graphics = this.add.graphics();
   }
 
   update() {
@@ -42,6 +43,30 @@ class GameScene extends Phaser.Scene {
         y: this.player.y,
       }));
     }
+
+    if (this.player && this.input.activePointer) {
+      const pointer = this.input.activePointer;
+      const startX = this.player.x;
+      const startY = this.player.y;
+
+      const dx = pointer.worldX - startX;
+      const dy = pointer.worldY - startY;
+      const length = Math.sqrt(dx * dx + dy * dy);
+
+      const maxLength = 100;
+
+      const ratio = maxLength / length;
+      const endX = startX + dx * ratio;
+      const endY = startY + dy * ratio;
+
+      this.graphics.clear();
+      this.graphics.lineStyle(4, 0xff0000, 1);
+      this.graphics.beginPath();
+      this.graphics.moveTo(startX, startY);
+      this.graphics.lineTo(endX, endY);
+      this.graphics.strokePath();
+    }
+
   }
 
   spawnPlayer(playerId, playerColor, x = 100, y = 100) {
