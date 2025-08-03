@@ -21,6 +21,9 @@ class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     gameScene = this;
     this.graphics = this.add.graphics();
+    this.projectiles = this.add.group();
+    this.input.on('pointerdown', this.shoot, this);
+
   }
 
   update() {
@@ -90,6 +93,24 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  shoot(pointer) {
+    if (pointer.leftButtonDown() && this.player) {
+      const angle = Phaser.Math.Angle.Between(
+        this.player.x, this.player.y,
+        pointer.worldX, pointer.worldY
+      );
+
+      socket.send(JSON.stringify({
+        type: 'shoot',
+        x: this.player.x,
+        y: this.player.y,
+        angle: angle
+      }));
+    }
+  }
+
+
+
 }
 
 // Initialize Phaser game
@@ -135,9 +156,23 @@ socket.addEventListener('message', (event) => {
     addMessage(data);
   }
 
-if (data.type === 'move' && gameScene) {
-  gameScene.updateRemotePlayer(data.id, data.x, data.y, data.color);
-}
+  if (data.type === 'move' && gameScene) {
+    gameScene.updateRemotePlayer(data.id, data.x, data.y, data.color);
+  }
+
+  if (data.type === 'projectile' && gameScene) {
+    const bullet = gameScene.add.circle(data.x, data.y, 4, 0xffffff);
+    gameScene.physics.add.existing(bullet);
+    bullet.body.setCircle(4);
+    bullet.body.setVelocity(
+      Math.cos(data.angle) * 400,
+      Math.sin(data.angle) * 400
+    );
+    gameScene.projectiles.add(bullet);
+    gameScene.time.delayedCall(1500, () => bullet.destroy());
+  }
+
+
 });
 
 // Chat: DOM elements
