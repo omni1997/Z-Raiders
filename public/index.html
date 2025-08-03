@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-6 font-sans">
+  <div class="flex items-center gap-4 mb-8">
+    <div id="color-box" class="w-10 h-10 border"></div>
+    <div id="form" class="flex flex-col">
+      <div id="info" class="mb-2 text-sm text-gray-600">Waiting for server data...</div>
+      <input
+        type="text"
+        id="pseudo"
+        placeholder="Enter your username"
+        class="mb-2 px-2 py-1 border rounded"
+      />
+      <button id="send" class="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+        Send
+      </button>
+    </div>
+  </div>
+
+  <div id="chat" class="max-w-xl space-y-2" style="display: none;">
+    <div
+      id="messages"
+      class="h-52 overflow-y-auto border p-2 bg-white rounded shadow text-sm"
+    ></div>
+    <div id="chat-input" class="flex gap-2">
+      <input
+        type="text"
+        id="message"
+        placeholder="Type a message..."
+        class="flex-1 px-2 py-1 border rounded"
+      />
+      <button
+        id="send-msg"
+        class="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+      >
+        Send
+      </button>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
