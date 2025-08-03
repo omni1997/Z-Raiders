@@ -46,6 +46,20 @@ wss.on('connection', (ws) => {
         other.send(JSON.stringify(payload));
       }
     }
+
+    if (msg.type === 'move' && client.pseudo) {
+      const payload = {
+        type: 'move',
+        id: client.id,
+        x: msg.x,
+        y: msg.y,
+        color: client.color
+      };
+      for (const other of clients.keys()) {
+        other.send(JSON.stringify(payload));
+      }
+    }
+
   });
 
   ws.on('close', () => {
@@ -56,3 +70,4 @@ wss.on('connection', (ws) => {
 server.listen(3000, () => {
   console.log('Server listening on http://localhost:3000');
 });
+
