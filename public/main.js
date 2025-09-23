@@ -172,6 +172,19 @@ socket.addEventListener('message', (event) => {
     gameScene.time.delayedCall(1500, () => bullet.destroy());
   }
 
+  if (data.type === 'respawn' && gameScene) {
+  const sprite = players[data.id];
+  if (sprite) {
+    sprite.setPosition(data.x, data.y);
+  } else {
+    gameScene.spawnPlayer(data.id, data.color, data.x, data.y);
+  }
+
+  if (data.id === id) {
+    gameScene.player.setPosition(data.x, data.y);
+  }
+}
+
 
 });
 
@@ -224,3 +237,4 @@ function addMessage(data) {
   msgList.appendChild(div);
   msgList.scrollTop = msgList.scrollHeight;
 }
+
