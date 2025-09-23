@@ -98,6 +98,6 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(3000, () => {
-  console.log('Server listening on http://192.168.1.152:3000');
+  console.log('Server listening on http://127.0.0.1:3000');
 });
 

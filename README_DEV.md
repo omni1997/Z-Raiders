@@ -7,4 +7,4 @@ npm install ws express
 
 
 # RUN SERVER
-node hello.js
+node server.js
