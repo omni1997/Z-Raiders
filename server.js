@@ -15,8 +15,8 @@ const clients = new Map();
 // Map of projectiles for server-side collision detection only
 const projectiles = new Map();
 
-const MAP_WIDTH = 800;
-const MAP_HEIGHT = 600;
+const MAP_WIDTH = 2000;
+const MAP_HEIGHT = 2000;
 const PLAYER_RADIUS = 20;
 const PROJECTILE_RADIUS = 4;
 const PROJECTILE_SPEED = 400;
@@ -90,8 +90,17 @@ wss.on('connection', (ws) => {
 
     // Update player position and broadcast
     if (msg.type === 'move' && client.pseudo) {
-      client.x = msg.x;
-      client.y = msg.y;
+      const speed = 200 / 60; // vitesse par tick (approx)
+      
+      // Calcul de la nouvelle position côté serveur
+      client.x += msg.vx / 60; 
+      client.y += msg.vy / 60;
+
+      // Clamp pour rester dans la map
+      client.x = Math.max(PLAYER_RADIUS, Math.min(MAP_WIDTH - PLAYER_RADIUS, client.x));
+      client.y = Math.max(PLAYER_RADIUS, Math.min(MAP_HEIGHT - PLAYER_RADIUS, client.y));
+
+      // Envoi de la position validée à tous les clients
       const movePayload = {
         type: 'move',
         id: client.id,

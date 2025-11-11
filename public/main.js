@@ -7,6 +7,10 @@ let pseudo = null;
 const players = {};
 let gameScene = null;
 
+const mapWidth = 2000;
+const mapHeight = 2000;
+
+
 // Phaser Game Scene
 class GameScene extends Phaser.Scene {
   constructor() {
@@ -14,16 +18,30 @@ class GameScene extends Phaser.Scene {
   }
 
   preload() {
+    this.load.image('map', 'assets/map.png');
     this.load.image('player', 'assets/player.png');
   }
 
   create() {
+    const map = this.add.image(0, 0, 'map')
+      .setOrigin(0)
+      .setDepth(-1)
+      .setDisplaySize(mapWidth, mapHeight);
+
+
+    
     this.cursors = this.input.keyboard.createCursorKeys();
     gameScene = this;
     this.graphics = this.add.graphics();
     this.projectiles = this.add.group();
     this.input.on('pointerdown', this.shoot, this);
 
+  }
+
+  updateCamera() {
+    const cam = this.cameras.main;
+    // La caméra suit exactement le joueur
+    cam.centerOn(this.player.x, this.player.y);
   }
 
   update() {
@@ -37,16 +55,19 @@ class GameScene extends Phaser.Scene {
     if (this.cursors.up.isDown) vy = -speed;
     if (this.cursors.down.isDown) vy = speed;
 
+    // Appliquer la vélocité localement pour l'animation
     this.player.setVelocity(vx, vy);
 
+    // Envoyer la vitesse au serveur
     if (vx !== 0 || vy !== 0) {
       socket.send(JSON.stringify({
         type: 'move',
-        x: this.player.x,
-        y: this.player.y,
+        vx: vx,
+        vy: vy
       }));
     }
 
+    // Direction du tir et ligne de visée
     if (this.player && this.input.activePointer) {
       const pointer = this.input.activePointer;
       const startX = this.player.x;
@@ -57,7 +78,6 @@ class GameScene extends Phaser.Scene {
       const length = Math.sqrt(dx * dx + dy * dy);
 
       const maxLength = 100;
-
       const ratio = maxLength / length;
       const endX = startX + dx * ratio;
       const endY = startY + dy * ratio;
@@ -70,6 +90,7 @@ class GameScene extends Phaser.Scene {
       this.graphics.strokePath();
     }
 
+    this.updateCamera();
   }
 
   spawnPlayer(playerId, playerColor, x = 100, y = 100) {
@@ -77,7 +98,12 @@ class GameScene extends Phaser.Scene {
       Phaser.Display.Color.HexStringToColor(playerColor).color
     );
     players[playerId] = sprite;
-    if (playerId === id) this.player = sprite;
+
+    if (playerId === id) {
+        this.player = sprite;
+        // Supprimer startFollow()
+        this.cameras.main.setZoom(1.5);
+    }
   }
 
   updateRemotePlayer(playerId, x, y, playerColor) {
@@ -86,7 +112,7 @@ class GameScene extends Phaser.Scene {
     if (!sprite) {
       sprite = this.physics.add.sprite(x, y, 'player').setTintFill(
         Phaser.Display.Color.HexStringToColor(playerColor || '#000000').color
-      );
+      );_
       players[playerId] = sprite;
     } else {
       sprite.setPosition(x, y);
@@ -156,8 +182,13 @@ socket.addEventListener('message', (event) => {
     addMessage(data);
   }
 
-  if (data.type === 'move' && gameScene) {
-    gameScene.updateRemotePlayer(data.id, data.x, data.y, data.color);
+ if (data.type === 'move' && gameScene) {
+    if (data.id === id && gameScene.player) {
+      // appliquer la position validée par le serveur
+      gameScene.player.setPosition(data.x, data.y);
+    } else {
+      gameScene.updateRemotePlayer(data.id, data.x, data.y, data.color);
+    }
   }
 
   if (data.type === 'projectile' && gameScene) {
