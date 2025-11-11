@@ -8,13 +8,28 @@ const players = {};
 const zombies = {};
 let gameScene = null;
 
+const MAP_WIDTH = 2000;
+const MAP_HEIGHT = 2000;
+
 // Phaser Game Scene
 class GameScene extends Phaser.Scene {
+
+
+  preload() {
+    this.load.image('map', 'assets/map.png');
+    this.load.image('player', 'assets/player.png');
+  }
+  
   constructor() {
     super('Game');
   }
 
   create() {
+    const map = this.add.image(0, 0, 'map')
+      .setOrigin(0)
+      .setDepth(-1)
+      .setDisplaySize(MAP_WIDTH, MAP_HEIGHT);
+
     this.cursors = this.input.keyboard.createCursorKeys();
     gameScene = this;
     this.graphics = this.add.graphics();
