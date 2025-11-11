@@ -47,6 +47,21 @@
       </div>
     </div>
 
+    <div id="scoreboard" class="h-[20%] p-4 bg-gray-50 border-b rounded-md shadow-sm text-sm flex flex-col gap-2">
+      <!-- Personal score -->
+      <div class="flex items-center justify-between">
+        <span class="font-semibold text-gray-700">Your Score:</span>
+        <span id="my-score" class="font-bold text-blue-600">0 zombies / 0 players</span>
+      </div>
+
+      <!-- Separator -->
+      <div class="border-t border-gray-300 my-1"></div>
+
+      <!-- Top players -->
+      <div class="font-semibold text-gray-700">Top Players:</div>
+      <ol id="top-players" class="list-decimal list-inside space-y-1 text-gray-800"></ol>
+    </div>
+
     <!-- Chat (zone visible uniquement après pseudo confirmé) -->
     <div id="chat" class="flex flex-col h-[80%]" style="display: none;">
 
