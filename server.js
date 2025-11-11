@@ -22,8 +22,8 @@ const zombies = new Map();
 const scores = new Map(); // playerId → { zombiesKilled: 0, playersKilled: 0 }
 
 // Map and entity parameters
-const MAP_WIDTH = 800;
-const MAP_HEIGHT = 600;
+const MAP_WIDTH = 2000;
+const MAP_HEIGHT = 2000;
 const PLAYER_RADIUS = 20;
 const PROJECTILE_RADIUS = 4;
 const PROJECTILE_SPEED = 400;
