@@ -214,6 +214,34 @@ socket.addEventListener('message', (event) => {
   if (data.type === 'zombie_remove' && gameScene) {
     gameScene.removeZombie(data.id);
   }
+
+  if (data.type === 'score_update') {
+    // Personal score
+    if (data.playerId === id) {
+      document.getElementById('my-score').innerText =
+        `${data.zombiesKilled} zombies / ${data.playersKilled} players`;
+    }
+
+    // Top players
+    const topList = document.getElementById('top-players');
+    topList.innerHTML = '';
+    data.topPlayers.forEach((p, index) => {
+      const li = document.createElement('li');
+      const name = p.pseudo;
+
+      // Add badge for top 3
+      let badge = '';
+      if (index === 0) badge = '🥇 ';
+      else if (index === 1) badge = '🥈 ';
+      else if (index === 2) badge = '🥉 ';
+
+      li.innerText = `${badge}${name}: ${p.zombiesKilled} zombies / ${p.playersKilled} players`;
+      topList.appendChild(li);
+    });
+  }
+
+
+  
 });
 
 // Chat controls
