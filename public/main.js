@@ -19,7 +19,7 @@ class GameScene extends Phaser.Scene {
     this.load.image('map', 'assets/map.png');
     this.load.image('player', 'assets/player.png');
   }
-  
+
   constructor() {
     super('Game');
   }
@@ -36,6 +36,13 @@ class GameScene extends Phaser.Scene {
     this.projectiles = this.add.group();
     this.input.on('pointerdown', this.shoot, this);
   }
+
+
+  updateCamera() {
+      const cam = this.cameras.main;
+      cam.centerOn(this.player.x, this.player.y);
+  }
+
 
   update() {
     if (!this.player || !pseudo) return;
@@ -80,6 +87,7 @@ class GameScene extends Phaser.Scene {
       this.graphics.lineTo(endX, endY);
       this.graphics.strokePath();
     }
+    this.updateCamera();
   }
 
   // Spawns a rectangle player
