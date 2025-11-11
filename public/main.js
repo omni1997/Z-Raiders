@@ -8,18 +8,41 @@ const players = {};
 const zombies = {};
 let gameScene = null;
 
+const mapWidth = 2000;
+const mapHeight = 2000;
+
+
 // Phaser Game Scene
 class GameScene extends Phaser.Scene {
   constructor() {
     super('Game');
   }
 
+
+  preload() {
+    this.load.image('map', 'assets/map.png');
+    this.load.image('player', 'assets/player.png');
+  }
+
   create() {
+    const map = this.add.image(0, 0, 'map')
+      .setOrigin(0)
+      .setDepth(-1)
+      .setDisplaySize(mapWidth, mapHeight);
+
+
+    
     this.cursors = this.input.keyboard.createCursorKeys();
     gameScene = this;
     this.graphics = this.add.graphics();
     this.projectiles = this.add.group();
     this.input.on('pointerdown', this.shoot, this);
+  }
+
+  updateCamera() {
+    const cam = this.cameras.main;
+    // La caméra suit exactement le joueur
+    cam.centerOn(this.player.x, this.player.y);
   }
 
   update() {
@@ -33,18 +56,21 @@ class GameScene extends Phaser.Scene {
     if (this.cursors.up.isDown) vy = -speed;
     if (this.cursors.down.isDown) vy = speed;
 
-    this.player.body.setVelocity(vx, vy);
+    // Appliquer la vélocité localement pour l'animation
+    this.player.setVelocity(vx, vy);
 
+    // Envoyer la vitesse au serveur
     if (vx !== 0 || vy !== 0) {
       socket.send(JSON.stringify({
         type: 'move',
-        x: this.player.x,
-        y: this.player.y,
+        vx: vx,
+        vy: vy
       }));
     }
 
-    // Draw aiming line
-    if (this.input.activePointer) {
+    // Direction du tir et ligne de visée
+    if (this.player && this.input.activePointer) {
+
       const pointer = this.input.activePointer;
       const startX = this.player.x;
       const startY = this.player.y;
@@ -65,6 +91,7 @@ class GameScene extends Phaser.Scene {
       this.graphics.lineTo(endX, endY);
       this.graphics.strokePath();
     }
+    this.updateCamera();
   }
 
   // Spawns a rectangle player
@@ -73,7 +100,12 @@ class GameScene extends Phaser.Scene {
     this.physics.add.existing(sprite);
     sprite.body.setCollideWorldBounds(true);
     players[playerId] = sprite;
-    if (playerId === id) this.player = sprite;
+
+    if (playerId === id) {
+        this.player = sprite;
+        // Supprimer startFollow()
+        this.cameras.main.setZoom(1.5);
+    }
   }
 
   // Update position of other players
@@ -81,6 +113,7 @@ class GameScene extends Phaser.Scene {
     if (playerId === id) return;
     let sprite = players[playerId];
     if (!sprite) {
+
       sprite = this.add.rectangle(x, y, 40, 40, Phaser.Display.Color.HexStringToColor(playerColor || '#000000').color);
       this.physics.add.existing(sprite);
       players[playerId] = sprite;
@@ -173,8 +206,13 @@ socket.addEventListener('message', (event) => {
     addMessage(data);
   }
 
-  if (data.type === 'move' && gameScene) {
-    gameScene.updateRemotePlayer(data.id, data.x, data.y, data.color);
+ if (data.type === 'move' && gameScene) {
+    if (data.id === id && gameScene.player) {
+      // appliquer la position validée par le serveur
+      gameScene.player.setPosition(data.x, data.y);
+    } else {
+      gameScene.updateRemotePlayer(data.id, data.x, data.y, data.color);
+    }
   }
 
   if (data.type === 'projectile' && gameScene) {
