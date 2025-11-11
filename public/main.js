@@ -5,6 +5,7 @@ let color = null;
 let pseudo = null;
 
 const players = {};
+const zombies = {};
 let gameScene = null;
 
 // Phaser Game Scene
@@ -13,17 +14,12 @@ class GameScene extends Phaser.Scene {
     super('Game');
   }
 
-  preload() {
-    this.load.image('player', 'assets/player.png');
-  }
-
   create() {
     this.cursors = this.input.keyboard.createCursorKeys();
     gameScene = this;
     this.graphics = this.add.graphics();
     this.projectiles = this.add.group();
     this.input.on('pointerdown', this.shoot, this);
-
   }
 
   update() {
@@ -37,7 +33,7 @@ class GameScene extends Phaser.Scene {
     if (this.cursors.up.isDown) vy = -speed;
     if (this.cursors.down.isDown) vy = speed;
 
-    this.player.setVelocity(vx, vy);
+    this.player.body.setVelocity(vx, vy);
 
     if (vx !== 0 || vy !== 0) {
       socket.send(JSON.stringify({
@@ -47,7 +43,8 @@ class GameScene extends Phaser.Scene {
       }));
     }
 
-    if (this.player && this.input.activePointer) {
+    // Draw aiming line
+    if (this.input.activePointer) {
       const pointer = this.input.activePointer;
       const startX = this.player.x;
       const startY = this.player.y;
@@ -55,10 +52,9 @@ class GameScene extends Phaser.Scene {
       const dx = pointer.worldX - startX;
       const dy = pointer.worldY - startY;
       const length = Math.sqrt(dx * dx + dy * dy);
-
       const maxLength = 100;
-
       const ratio = maxLength / length;
+
       const endX = startX + dx * ratio;
       const endY = startY + dy * ratio;
 
@@ -69,30 +65,31 @@ class GameScene extends Phaser.Scene {
       this.graphics.lineTo(endX, endY);
       this.graphics.strokePath();
     }
-
   }
 
+  // Spawns a rectangle player
   spawnPlayer(playerId, playerColor, x = 100, y = 100) {
-    const sprite = this.physics.add.sprite(x, y, 'player').setTintFill(
-      Phaser.Display.Color.HexStringToColor(playerColor).color
-    );
+    const sprite = this.add.rectangle(x, y, 40, 40, Phaser.Display.Color.HexStringToColor(playerColor).color);
+    this.physics.add.existing(sprite);
+    sprite.body.setCollideWorldBounds(true);
     players[playerId] = sprite;
     if (playerId === id) this.player = sprite;
   }
 
+  // Update position of other players
   updateRemotePlayer(playerId, x, y, playerColor) {
     if (playerId === id) return;
     let sprite = players[playerId];
     if (!sprite) {
-      sprite = this.physics.add.sprite(x, y, 'player').setTintFill(
-        Phaser.Display.Color.HexStringToColor(playerColor || '#000000').color
-      );
+      sprite = this.add.rectangle(x, y, 40, 40, Phaser.Display.Color.HexStringToColor(playerColor || '#000000').color);
+      this.physics.add.existing(sprite);
       players[playerId] = sprite;
     } else {
       sprite.setPosition(x, y);
     }
   }
 
+  // Handle shooting
   shoot(pointer) {
     if (pointer.leftButtonDown() && this.player) {
       const angle = Phaser.Math.Angle.Between(
@@ -109,11 +106,31 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  // Spawns a zombie rectangle
+  spawnZombie(id, x, y) {
+    if (zombies[id]) return;
+    const zombie = this.add.rectangle(x, y, 30, 30, 0xff0000);
+    this.physics.add.existing(zombie);
+    zombies[id] = zombie;
+  }
 
+  // Updates a zombie position
+  updateZombie(id, x, y) {
+    const zombie = zombies[id];
+    if (zombie) zombie.setPosition(x, y);
+  }
 
+  // Removes a zombie when killed
+  removeZombie(id) {
+    const zombie = zombies[id];
+    if (zombie) {
+      zombie.destroy();
+      delete zombies[id];
+    }
+  }
 }
 
-// Initialize Phaser game
+// Phaser config
 const config = {
   type: Phaser.AUTO,
   width: document.getElementById('game-zone').clientWidth,
@@ -126,7 +143,7 @@ window.addEventListener('load', () => {
   new Phaser.Game(config);
 });
 
-// Listen for messages from the server
+// WebSocket message handling
 socket.addEventListener('message', (event) => {
   const data = JSON.parse(event.data);
 
@@ -173,28 +190,38 @@ socket.addEventListener('message', (event) => {
   }
 
   if (data.type === 'respawn' && gameScene) {
-  const sprite = players[data.id];
-  if (sprite) {
-    sprite.setPosition(data.x, data.y);
-  } else {
-    gameScene.spawnPlayer(data.id, data.color, data.x, data.y);
+    const sprite = players[data.id];
+    if (sprite) {
+      sprite.setPosition(data.x, data.y);
+    } else {
+      gameScene.spawnPlayer(data.id, data.color, data.x, data.y);
+    }
+
+    if (data.id === id) {
+      gameScene.player.setPosition(data.x, data.y);
+    }
   }
 
-  if (data.id === id) {
-    gameScene.player.setPosition(data.x, data.y);
+  // Spawn or update zombies
+  if (data.type === 'zombie_spawn' && gameScene) {
+    gameScene.spawnZombie(data.id, data.x, data.y);
   }
-}
 
+  if (data.type === 'zombie_move' && gameScene) {
+    gameScene.updateZombie(data.id, data.x, data.y);
+  }
 
+  if (data.type === 'zombie_remove' && gameScene) {
+    gameScene.removeZombie(data.id);
+  }
 });
 
-// Chat: DOM elements
+// Chat controls
 const pseudoInput = document.getElementById('pseudo');
 const sendPseudoBtn = document.getElementById('send');
 const messageInput = document.getElementById('message');
 const sendMsgBtn = document.getElementById('send-msg');
 
-// Pseudo
 sendPseudoBtn.addEventListener('click', sendPseudo);
 pseudoInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendPseudo();
@@ -206,7 +233,6 @@ function sendPseudo() {
   }
 }
 
-// Message
 sendMsgBtn.addEventListener('click', sendMessage);
 messageInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendMessage();
@@ -221,7 +247,6 @@ function sendMessage() {
 
 function addMessage(data) {
   const msgList = document.getElementById('messages');
-
   const div = document.createElement('div');
   div.className = 'flex items-center mb-1';
 
@@ -237,4 +262,3 @@ function addMessage(data) {
   msgList.appendChild(div);
   msgList.scrollTop = msgList.scrollHeight;
 }
-

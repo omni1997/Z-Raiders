@@ -9,25 +9,32 @@ const wss = new WebSocketServer({ server });
 
 app.use(express.static('public'));
 
-// Map of connected clients: ws → { id, color, pseudo, x, y }
+// Connected clients: ws → { id, color, pseudo, x, y }
 const clients = new Map();
 
-// Map of projectiles for server-side collision detection only
+// Server-side projectiles for collision handling
 const projectiles = new Map();
 
+// Server-side PVE enemies (zombies)
+const zombies = new Map();
+
+// Map and entity parameters
 const MAP_WIDTH = 800;
 const MAP_HEIGHT = 600;
 const PLAYER_RADIUS = 20;
 const PROJECTILE_RADIUS = 4;
 const PROJECTILE_SPEED = 400;
 const PROJECTILE_LIFETIME = 1500;
+const ZOMBIE_SPEED = 80;
+const ZOMBIE_SPAWN_INTERVAL = 10; // seconds
+const ZOMBIE_RADIUS = 18;
 
-// Generate random color in hex
+// Generate random color
 function getRandomColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
 }
 
-// Generate a random position on the map
+// Generate random position
 function randomPosition() {
   return {
     x: Math.floor(Math.random() * MAP_WIDTH),
@@ -35,7 +42,7 @@ function randomPosition() {
   };
 }
 
-// Calculate distance between two points
+// Compute distance between two points
 function distance(a, b) {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
@@ -47,10 +54,10 @@ wss.on('connection', (ws) => {
   const id = randomUUID();
   const pos = randomPosition();
 
-  // Add client to map with initial position and color
+  // Register client
   clients.set(ws, { id, color, pseudo: null, x: pos.x, y: pos.y });
 
-  // Send initial info to client
+  // Send initialization info
   ws.send(JSON.stringify({ type: 'init', id, color }));
 
   ws.on('message', (data) => {
@@ -58,12 +65,11 @@ wss.on('connection', (ws) => {
     const client = clients.get(ws);
     if (!client) return;
 
-    // Handle pseudo registration
+    // Pseudo registration
     if (msg.type === 'pseudo') {
       client.pseudo = msg.pseudo;
       ws.send(JSON.stringify({ type: 'confirm', pseudo: client.pseudo }));
 
-      // Spawn initial position on client
       const spawnPayload = {
         type: 'respawn',
         id: client.id,
@@ -75,7 +81,7 @@ wss.on('connection', (ws) => {
       console.log(`Connected: ${client.pseudo} (${client.id})`);
     }
 
-    // Broadcast chat messages
+    // Chat broadcast
     if (msg.type === 'chat' && client.pseudo) {
       const chatPayload = {
         type: 'chat',
@@ -88,7 +94,7 @@ wss.on('connection', (ws) => {
       }
     }
 
-    // Update player position and broadcast
+    // Player movement
     if (msg.type === 'move' && client.pseudo) {
       client.x = msg.x;
       client.y = msg.y;
@@ -104,11 +110,10 @@ wss.on('connection', (ws) => {
       }
     }
 
-    // Handle shooting
+    // Player shooting
     if (msg.type === 'shoot' && client.pseudo) {
       const idProj = 'p-' + randomUUID();
 
-      // Store projectile on server only for collision detection
       const projectile = {
         id: idProj,
         from: client.id,
@@ -119,7 +124,6 @@ wss.on('connection', (ws) => {
       };
       projectiles.set(idProj, projectile);
 
-      // Payload sent once to all clients to spawn projectile
       const projectilePayload = {
         type: 'projectile',
         id: projectile.id,
@@ -132,36 +136,53 @@ wss.on('connection', (ws) => {
         other.send(JSON.stringify(projectilePayload));
       }
 
-      // Auto-remove projectile after lifetime
       setTimeout(() => projectiles.delete(idProj), PROJECTILE_LIFETIME);
     }
   });
 
-  // Remove client on disconnect
   ws.on('close', () => {
     clients.delete(ws);
   });
 });
 
-// Server-side tick loop to detect collisions (60 FPS)
+// Spawn zombies at regular intervals
+setInterval(() => {
+  const id = 'z-' + randomUUID();
+  const pos = randomPosition();
+  const zombie = { id, x: pos.x, y: pos.y, targetId: null };
+  zombies.set(id, zombie);
+
+  // Inform all clients about new zombie
+  const payload = {
+    type: 'zombie_spawn',
+    id: zombie.id,
+    x: zombie.x,
+    y: zombie.y
+  };
+  for (const ws of clients.keys()) {
+    ws.send(JSON.stringify(payload));
+  }
+
+  console.log(`Zombie spawned: ${id}`);
+}, ZOMBIE_SPAWN_INTERVAL * 1000);
+
+// Server tick (60 FPS)
 setInterval(() => {
   const now = Date.now();
 
+  // --- Projectiles ---
   for (const [idProj, proj] of projectiles) {
-
-    // Move projectile server-side for collision only
     const vx = Math.cos(proj.angle) * PROJECTILE_SPEED / 60;
     const vy = Math.sin(proj.angle) * PROJECTILE_SPEED / 60;
     proj.x += vx;
     proj.y += vy;
 
-    // Check collision with all players except the shooter
+    // Check collision with players
     for (const client of clients.values()) {
       if (client.id === proj.from) continue;
       if (!client.pseudo) continue;
 
       if (distance(proj, client) < PLAYER_RADIUS + PROJECTILE_RADIUS) {
-        // Player hit → respawn at random position
         const newPos = randomPosition();
         client.x = newPos.x;
         client.y = newPos.y;
@@ -176,16 +197,98 @@ setInterval(() => {
           other.send(JSON.stringify(respawnPayload));
         }
 
-        // Remove projectile after hit
         projectiles.delete(idProj);
         break;
       }
     }
 
-    // Remove projectile after lifetime
+    // Check collision with zombies
+    for (const [zId, zombie] of zombies) {
+      if (distance(proj, zombie) < ZOMBIE_RADIUS + PROJECTILE_RADIUS) {
+        // Remove zombie
+        zombies.delete(zId);
+
+        const removePayload = {
+          type: 'zombie_remove',
+          id: zId
+        };
+        for (const ws of clients.keys()) {
+          ws.send(JSON.stringify(removePayload));
+        }
+
+        projectiles.delete(idProj);
+        console.log(`Zombie ${zId} killed by projectile`);
+        break;
+      }
+    }
+
+    // Lifetime expiration
     if (now - proj.createdAt > PROJECTILE_LIFETIME) {
       projectiles.delete(idProj);
       continue;
+    }
+  }
+
+  // --- Zombies ---
+  for (const zombie of zombies.values()) {
+    // Find the closest player
+    if (!zombie.targetId || ![...clients.values()].find(c => c.id === zombie.targetId)) {
+      let closest = null;
+      let minDist = Infinity;
+      for (const client of clients.values()) {
+        if (!client.pseudo) continue;
+        const d = distance(zombie, client);
+        if (d < minDist) {
+          minDist = d;
+          closest = client.id;
+        }
+      }
+      zombie.targetId = closest;
+    }
+
+    const target = [...clients.values()].find(c => c.id === zombie.targetId);
+    if (!target) continue;
+
+    // Move toward target
+    const dx = target.x - zombie.x;
+    const dy = target.y - zombie.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 0) {
+      zombie.x += (dx / len) * (ZOMBIE_SPEED / 60);
+      zombie.y += (dy / len) * (ZOMBIE_SPEED / 60);
+    }
+
+    // Send zombie position to all clients
+    const movePayload = {
+      type: 'zombie_move',
+      id: zombie.id,
+      x: zombie.x,
+      y: zombie.y
+    };
+    for (const ws of clients.keys()) {
+      ws.send(JSON.stringify(movePayload));
+    }
+
+    // Collision with player
+    for (const client of clients.values()) {
+      if (!client.pseudo) continue;
+      if (distance(zombie, client) < PLAYER_RADIUS + ZOMBIE_RADIUS) {
+        const newPos = randomPosition();
+        client.x = newPos.x;
+        client.y = newPos.y;
+
+        const respawnPayload = {
+          type: 'respawn',
+          id: client.id,
+          x: client.x,
+          y: client.y
+        };
+        for (const other of clients.keys()) {
+          other.send(JSON.stringify(respawnPayload));
+        }
+
+        console.log(`${client.pseudo} was caught by zombie ${zombie.id}`);
+      }
     }
   }
 }, 1000 / 60);
