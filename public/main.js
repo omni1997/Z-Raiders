@@ -30,6 +30,10 @@ class GameScene extends Phaser.Scene {
       .setDepth(-1)
       .setDisplaySize(MAP_WIDTH, MAP_HEIGHT);
 
+    // Définir les limites du monde sur la taille de la map
+    this.physics.world.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
+    this.cameras.main.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
     this.cursors = this.input.keyboard.createCursorKeys();
     this.graphics = this.add.graphics();
     this.projectiles = this.add.group();
@@ -53,7 +57,7 @@ class GameScene extends Phaser.Scene {
     if (this.player) cam.centerOn(this.player.x, this.player.y);
   }
 
-  update() {
+update() {
     if (!this.player || !pseudo) return;
 
     let vx = 0, vy = 0;
@@ -74,25 +78,38 @@ class GameScene extends Phaser.Scene {
       }));
     }
 
-    // Ligne de visée
-    if (this.player) {
-      const startX = this.player.x;
-      const startY = this.player.y;
-      const length = 100;
+    // Ligne de visée toujours vers la souris
+    if (this.player && this.input.activePointer) {
+        const pointer = this.input.activePointer;
 
-      const endX = startX + Math.cos(this.aimAngle) * length;
-      const endY = startY + Math.sin(this.aimAngle) * length;
+        // Transforme les coordonnées de la souris en coordonnées du monde
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-      this.graphics.clear();
-      this.graphics.lineStyle(4, 0xff0000, 1);
-      this.graphics.beginPath();
-      this.graphics.moveTo(startX, startY);
-      this.graphics.lineTo(endX, endY);
-      this.graphics.strokePath();
+        const startX = this.player.x;
+        const startY = this.player.y;
+
+        const dx = worldPoint.x - startX;
+        const dy = worldPoint.y - startY;
+
+        const length = Math.sqrt(dx*dx + dy*dy);
+        const maxLength = 100;
+        const ratio = Math.min(maxLength / length, 1);
+
+        const endX = startX + dx * ratio;
+        const endY = startY + dy * ratio;
+
+        this.graphics.clear();
+        this.graphics.lineStyle(4, 0xff0000, 1);
+        this.graphics.beginPath();
+        this.graphics.moveTo(startX, startY);
+        this.graphics.lineTo(endX, endY);
+        this.graphics.strokePath();
     }
 
+
     this.updateCamera();
-  }
+}
+
 
   spawnPlayer(playerId, playerColor, x = 100, y = 100) {
     const sprite = this.add.rectangle(x, y, 40, 40, Phaser.Display.Color.HexStringToColor(playerColor).color);
@@ -218,7 +235,6 @@ socket.addEventListener('message', (event) => {
     }
   }
 
-  // Spawn or update zombies
   if (data.type === 'zombie_spawn' && gameScene) {
     gameScene.spawnZombie(data.id, data.x, data.y);
   }
