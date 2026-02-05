@@ -13,15 +13,15 @@ const MAP_HEIGHT = 2000;
 
 // Phaser Game Scene
 class GameScene extends Phaser.Scene {
-
+  constructor() {
+    super('Game');
+    gameScene = this;
+    this.aimAngle = 0;
+  }
 
   preload() {
     this.load.image('map', 'assets/map.png');
     this.load.image('player', 'assets/player.png');
-  }
-
-  constructor() {
-    super('Game');
   }
 
   create() {
@@ -31,18 +31,27 @@ class GameScene extends Phaser.Scene {
       .setDisplaySize(MAP_WIDTH, MAP_HEIGHT);
 
     this.cursors = this.input.keyboard.createCursorKeys();
-    gameScene = this;
     this.graphics = this.add.graphics();
     this.projectiles = this.add.group();
+
+    // Met à jour l'angle de visée quand la souris bouge
+    this.input.on('pointermove', pointer => {
+      if (this.player) {
+        this.aimAngle = Phaser.Math.Angle.Between(
+          this.player.x, this.player.y,
+          pointer.worldX, pointer.worldY
+        );
+      }
+    });
+
+    // Tir
     this.input.on('pointerdown', this.shoot, this);
   }
 
-
   updateCamera() {
-      const cam = this.cameras.main;
-      cam.centerOn(this.player.x, this.player.y);
+    const cam = this.cameras.main;
+    if (this.player) cam.centerOn(this.player.x, this.player.y);
   }
-
 
   update() {
     if (!this.player || !pseudo) return;
@@ -65,20 +74,14 @@ class GameScene extends Phaser.Scene {
       }));
     }
 
-    // Draw aiming line
-    if (this.input.activePointer) {
-      const pointer = this.input.activePointer;
+    // Ligne de visée
+    if (this.player) {
       const startX = this.player.x;
       const startY = this.player.y;
+      const length = 100;
 
-      const dx = pointer.worldX - startX;
-      const dy = pointer.worldY - startY;
-      const length = Math.sqrt(dx * dx + dy * dy);
-      const maxLength = 100;
-      const ratio = maxLength / length;
-
-      const endX = startX + dx * ratio;
-      const endY = startY + dy * ratio;
+      const endX = startX + Math.cos(this.aimAngle) * length;
+      const endY = startY + Math.sin(this.aimAngle) * length;
 
       this.graphics.clear();
       this.graphics.lineStyle(4, 0xff0000, 1);
@@ -87,10 +90,10 @@ class GameScene extends Phaser.Scene {
       this.graphics.lineTo(endX, endY);
       this.graphics.strokePath();
     }
+
     this.updateCamera();
   }
 
-  // Spawns a rectangle player
   spawnPlayer(playerId, playerColor, x = 100, y = 100) {
     const sprite = this.add.rectangle(x, y, 40, 40, Phaser.Display.Color.HexStringToColor(playerColor).color);
     this.physics.add.existing(sprite);
@@ -99,7 +102,6 @@ class GameScene extends Phaser.Scene {
     if (playerId === id) this.player = sprite;
   }
 
-  // Update position of other players
   updateRemotePlayer(playerId, x, y, playerColor) {
     if (playerId === id) return;
     let sprite = players[playerId];
@@ -112,24 +114,17 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  // Handle shooting
   shoot(pointer) {
     if (pointer.leftButtonDown() && this.player) {
-      const angle = Phaser.Math.Angle.Between(
-        this.player.x, this.player.y,
-        pointer.worldX, pointer.worldY
-      );
-
       socket.send(JSON.stringify({
         type: 'shoot',
         x: this.player.x,
         y: this.player.y,
-        angle: angle
+        angle: this.aimAngle
       }));
     }
   }
 
-  // Spawns a zombie rectangle
   spawnZombie(id, x, y) {
     if (zombies[id]) return;
     const zombie = this.add.rectangle(x, y, 30, 30, 0xff0000);
@@ -137,13 +132,11 @@ class GameScene extends Phaser.Scene {
     zombies[id] = zombie;
   }
 
-  // Updates a zombie position
   updateZombie(id, x, y) {
     const zombie = zombies[id];
     if (zombie) zombie.setPosition(x, y);
   }
 
-  // Removes a zombie when killed
   removeZombie(id) {
     const zombie = zombies[id];
     if (zombie) {
@@ -239,32 +232,24 @@ socket.addEventListener('message', (event) => {
   }
 
   if (data.type === 'score_update') {
-    // Personal score
     if (data.playerId === id) {
       document.getElementById('my-score').innerText =
         `${data.zombiesKilled} zombies / ${data.playersKilled} players`;
     }
 
-    // Top players
     const topList = document.getElementById('top-players');
     topList.innerHTML = '';
     data.topPlayers.forEach((p, index) => {
       const li = document.createElement('li');
-      const name = p.pseudo;
-
-      // Add badge for top 3
       let badge = '';
       if (index === 0) badge = '🥇 ';
       else if (index === 1) badge = '🥈 ';
       else if (index === 2) badge = '🥉 ';
 
-      li.innerText = `${badge}${name}: ${p.zombiesKilled} zombies / ${p.playersKilled} players`;
+      li.innerText = `${badge}${p.pseudo}: ${p.zombiesKilled} zombies / ${p.playersKilled} players`;
       topList.appendChild(li);
     });
   }
-
-
-  
 });
 
 // Chat controls
