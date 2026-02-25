@@ -37,8 +37,8 @@ socket.addEventListener('message', (event) => {
     state.gameScene.physics.add.existing(bullet);
     bullet.body.setCircle(4);
     bullet.body.setVelocity(
-      Math.cos(data.angle) * 400,
-      Math.sin(data.angle) * 400
+      Math.cos(data.angle) * 800,
+      Math.sin(data.angle) * 800
     );
     state.gameScene.projectiles.add(bullet);
     state.gameScene.time.delayedCall(1500, () => bullet.destroy());

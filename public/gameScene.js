@@ -32,6 +32,8 @@ export class GameScene extends Phaser.Scene {
           pointer.worldX, pointer.worldY
         );
       }
+      const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      this.sight.setPosition(worldPoint.x, worldPoint.y);
     });
     this.input.on('pointerdown', this.shoot, this);
   }
@@ -59,6 +61,10 @@ export class GameScene extends Phaser.Scene {
     const pointer = this.input.activePointer;
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     this.sight.setPosition(worldPoint.x, worldPoint.y);
+    this.aimAngle = Phaser.Math.Angle.Between(
+      this.player.x, this.player.y,
+      worldPoint.x, worldPoint.y
+    );
     this.updateCamera();
   }
 
