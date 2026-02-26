@@ -1,86 +1,94 @@
 const { randomUUID } = require('crypto');
-const { clients, projectiles, zombies, scores } = require('./state');
+const { clients, projectiles, zombies, weaponsOnMap, scores } = require('./state');
 const { distance, randomPosition, getTopPlayers, broadcast } = require('./utils');
 const {
-  PROJECTILE_SPEED,
-  PROJECTILE_LIFETIME,
   PROJECTILE_RADIUS,
   PLAYER_RADIUS,
   ZOMBIE_RADIUS,
   ZOMBIE_SPEED,
   ZOMBIE_SPAWN_INTERVAL,
+  WEAPON_SPAWN_INTERVAL,
+  MAX_WEAPONS_ON_MAP,
+  WEAPONS,
 } = require('./config');
 
+const WEAPON_TYPES = Object.keys(WEAPONS);
+const WEAPON_PICKUP_RADIUS = 25;
+
 function startGameLoop() {
-  // Spawn zombies
+
+  // pawn zombies
   setInterval(() => {
     const id = 'z-' + randomUUID();
     const pos = randomPosition();
     const zombie = { id, x: pos.x, y: pos.y, targetId: null };
     zombies.set(id, zombie);
     broadcast({ type: 'zombie_spawn', id: zombie.id, x: zombie.x, y: zombie.y });
-    console.log(`Zombie spawned: ${id}`);
   }, ZOMBIE_SPAWN_INTERVAL * 1000);
 
-  // Server tick (60 FPS)
+  // Spawn weapons
+  setInterval(() => {
+    if (weaponsOnMap.size >= MAX_WEAPONS_ON_MAP) return;
+    const id = 'w-' + randomUUID();
+    const pos = randomPosition();
+    const type = WEAPON_TYPES[Math.floor(Math.random() * WEAPON_TYPES.length)];
+    const weapon = { id, x: pos.x, y: pos.y, type };
+    weaponsOnMap.set(id, weapon);
+    broadcast({ type: 'weapon_spawn', id, x: weapon.x, y: weapon.y, weaponType: type });
+    console.log(`Weapon spawned: ${type} at (${weapon.x}, ${weapon.y})`);
+  }, WEAPON_SPAWN_INTERVAL * 1000);
+
   setInterval(() => {
     const now = Date.now();
 
-    // --- Projectiles ---
     for (const [idProj, proj] of projectiles) {
-      proj.x += Math.cos(proj.angle) * PROJECTILE_SPEED / 60;
-      proj.y += Math.sin(proj.angle) * PROJECTILE_SPEED / 60;
+      const speed = proj.speed || 800;
+      proj.x += Math.cos(proj.angle) * speed / 60;
+      proj.y += Math.sin(proj.angle) * speed / 60;
 
       let collided = false;
 
-      // Player collision
+      // Collide player
       for (const client of clients.values()) {
         if (client.id === proj.from || !client.pseudo) continue;
         if (distance(proj, client) < PLAYER_RADIUS + PROJECTILE_RADIUS) {
           const killerScore = scores.get(proj.from) || { zombiesKilled: 0, playersKilled: 0 };
           killerScore.playersKilled += 1;
           scores.set(proj.from, killerScore);
-
           const newPos = randomPosition();
           client.x = newPos.x;
           client.y = newPos.y;
-
           broadcast({ type: 'score_update', playerId: proj.from, ...killerScore, topPlayers: getTopPlayers() });
           broadcast({ type: 'respawn', id: client.id, x: client.x, y: client.y });
-
           collided = true;
           break;
         }
       }
       if (collided) { projectiles.delete(idProj); continue; }
 
-      // Zombie collision
+      // Collide zombie
       for (const [zId, zombie] of zombies) {
         if (distance(proj, zombie) < ZOMBIE_RADIUS + PROJECTILE_RADIUS) {
           zombies.delete(zId);
-
           const killerScore = scores.get(proj.from) || { zombiesKilled: 0, playersKilled: 0 };
           killerScore.zombiesKilled += 1;
           scores.set(proj.from, killerScore);
-
           broadcast({ type: 'score_update', playerId: proj.from, ...killerScore, topPlayers: getTopPlayers() });
           broadcast({ type: 'zombie_remove', id: zId });
-
           collided = true;
           break;
         }
       }
       if (collided) { projectiles.delete(idProj); continue; }
 
-      // Lifetime expiration
-      if (now - proj.createdAt > PROJECTILE_LIFETIME) {
+      // Expiration
+      if (now - proj.createdAt > (proj.lifetime || 1500)) {
         projectiles.delete(idProj);
       }
     }
 
-    // --- Zombies ---
+    // Zombies
     for (const zombie of zombies.values()) {
-      // Find closest player
       if (!zombie.targetId || ![...clients.values()].find(c => c.id === zombie.targetId)) {
         let closest = null, minDist = Infinity;
         for (const client of clients.values()) {
@@ -104,7 +112,6 @@ function startGameLoop() {
 
       broadcast({ type: 'zombie_move', id: zombie.id, x: zombie.x, y: zombie.y });
 
-      // Collision with player
       for (const client of clients.values()) {
         if (!client.pseudo) continue;
         if (distance(zombie, client) < PLAYER_RADIUS + ZOMBIE_RADIUS) {
@@ -112,10 +119,42 @@ function startGameLoop() {
           client.x = newPos.x;
           client.y = newPos.y;
           broadcast({ type: 'respawn', id: client.id, x: client.x, y: client.y });
-          console.log(`${client.pseudo} was caught by zombie ${zombie.id}`);
         }
       }
     }
+
+    // Pickup weapon
+    for (const [wId, weapon] of weaponsOnMap) {
+      for (const [ws, client] of clients) {
+        if (!client.pseudo) continue;
+        if (distance(weapon, client) < WEAPON_PICKUP_RADIUS) {
+          const oldWeapon = client.weapon;
+          client.weapon = weapon.type;
+          client.lastShotAt = 0;
+          weaponsOnMap.delete(wId);
+
+          // Notifier tout le monde que l'arme a disparu
+          broadcast({ type: 'weapon_remove', id: wId });
+
+          // Notifier UNIQUEMENT le joueur concerné de son arme
+          ws.send(JSON.stringify({
+            type: 'weapon_equipped',
+            weaponType: client.weapon,
+            previousWeapon: oldWeapon,
+          }));
+
+          broadcast({
+            type: 'player_weapon',
+            playerId: client.id,
+            weaponType: client.weapon,
+          });
+
+          console.log(`${client.pseudo} picked up ${weapon.type}`);
+          break;
+        }
+      }
+    }
+
   }, 1000 / 60);
 }
 

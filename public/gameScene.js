@@ -1,5 +1,8 @@
 import { socket } from './socket.js';
-import { players, zombies, pseudo, id, MAP_WIDTH, MAP_HEIGHT, setGameScene } from './state.js';
+import { players, zombies, weaponsOnMap, pseudo, id, MAP_WIDTH, MAP_HEIGHT, setGameScene, currentWeapon } from './state.js';
+
+const WEAPON_OFFSET_X = 18;
+const WEAPON_OFFSET_Y = 5;
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -9,33 +12,56 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('map', 'assets/map.png');
-    this.load.image('player', 'assets/player.png');
-    this.load.image('sight', 'assets/sight.png');
+    this.load.image('map',     'assets/map.png');
+    this.load.image('player',  'assets/player.png');
+    this.load.image('sight',   'assets/sight.png');
+    this.load.image('gun',     'assets/guns/gun.png');
+    this.load.image('rifle',   'assets/guns/rifle.png');
+    this.load.image('shotgun', 'assets/guns/shotgun.png');
+    this.load.image('sniper',  'assets/guns/sniper.png');
   }
 
   create() {
-    const map = this.add.image(0, 0, 'map')
+    this.add.image(0, 0, 'map')
       .setOrigin(0)
       .setDepth(-1)
       .setDisplaySize(MAP_WIDTH, MAP_HEIGHT);
+
     this.physics.world.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
     this.cameras.main.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
     this.cursors = this.input.keyboard.createCursorKeys();
     this.projectiles = this.add.group();
+
     this.sight = this.add.image(0, 0, 'sight').setDepth(10).setScale(0.5);
     this.input.setDefaultCursor('none');
+
     this.input.on('pointermove', pointer => {
+      const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      this.sight.setPosition(worldPoint.x, worldPoint.y);
       if (this.player) {
         this.aimAngle = Phaser.Math.Angle.Between(
           this.player.x, this.player.y,
-          pointer.worldX, pointer.worldY
+          worldPoint.x, worldPoint.y
         );
+        this._updateLocalWeaponSprite();
       }
-      const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-      this.sight.setPosition(worldPoint.x, worldPoint.y);
     });
+
     this.input.on('pointerdown', this.shoot, this);
+  }
+
+  _updateLocalWeaponSprite() {
+    const entry = players[id];
+    if (!entry || !entry.weaponSprite) return;
+    this._positionWeaponSprite(entry.sprite, entry.weaponSprite, this.aimAngle);
+  }
+
+  _positionWeaponSprite(playerSprite, weaponSprite, angle) {
+    // Placer l'arme à côté du joueur dans la direction du viseur
+    const offsetX = Math.cos(angle) * WEAPON_OFFSET_X - Math.sin(angle) * WEAPON_OFFSET_Y;
+    const offsetY = Math.sin(angle) * WEAPON_OFFSET_X + Math.cos(angle) * WEAPON_OFFSET_Y;
+    weaponSprite.setPosition(playerSprite.x + offsetX, playerSprite.y + offsetY);
+    weaponSprite.setRotation(angle + Math.PI / 2);
   }
 
   updateCamera() {
@@ -44,20 +70,24 @@ export class GameScene extends Phaser.Scene {
 
   update() {
     if (!this.player || !pseudo) return;
+
     let vx = 0, vy = 0;
     const speed = 200;
-    if (this.cursors.left.isDown) vx = -speed;
+    if (this.cursors.left.isDown)  vx = -speed;
     if (this.cursors.right.isDown) vx = speed;
-    if (this.cursors.up.isDown) vy = -speed;
-    if (this.cursors.down.isDown) vy = speed;
+    if (this.cursors.up.isDown)    vy = -speed;
+    if (this.cursors.down.isDown)  vy = speed;
     this.player.body.setVelocity(vx, vy);
+
     if (vx !== 0 || vy !== 0) {
       socket.send(JSON.stringify({
         type: 'move',
         x: this.player.x,
         y: this.player.y,
+        aimAngle: this.aimAngle,
       }));
     }
+
     const pointer = this.input.activePointer;
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     this.sight.setPosition(worldPoint.x, worldPoint.y);
@@ -65,27 +95,50 @@ export class GameScene extends Phaser.Scene {
       this.player.x, this.player.y,
       worldPoint.x, worldPoint.y
     );
+    this._updateLocalWeaponSprite();
     this.updateCamera();
   }
 
-  spawnPlayer(playerId, playerColor, x = 100, y = 100) {
+  spawnPlayer(playerId, playerColor, x = 100, y = 100, weaponType = 'gun') {
+    // Si déjà existant, juste repositionner
+    if (players[playerId]) {
+      players[playerId].sprite.setPosition(x, y);
+      return;
+    }
+
     const sprite = this.add.rectangle(x, y, 40, 40, Phaser.Display.Color.HexStringToColor(playerColor).color);
     this.physics.add.existing(sprite);
     sprite.body.setCollideWorldBounds(true);
-    players[playerId] = sprite;
+
+    const weaponSprite = this.add.image(x, y, weaponType)
+      .setScale(5)
+      .setDepth(5)
+      .setOrigin(0.2, 0.5); // origine décalée pour que l'arme parte du côté du joueur
+
+    players[playerId] = { sprite, weaponSprite, aimAngle: 0, weaponType };
+
     if (playerId === id) this.player = sprite;
   }
 
-  updateRemotePlayer(playerId, x, y, playerColor) {
+  updateRemotePlayer(playerId, x, y, playerColor, aimAngle) {
     if (playerId === id) return;
-    let sprite = players[playerId];
-    if (!sprite) {
-      sprite = this.add.rectangle(x, y, 40, 40, Phaser.Display.Color.HexStringToColor(playerColor || '#000000').color);
-      this.physics.add.existing(sprite);
-      players[playerId] = sprite;
-    } else {
-      sprite.setPosition(x, y);
+    const entry = players[playerId];
+    if (!entry) {
+      this.spawnPlayer(playerId, playerColor || '#ffffff', x, y);
+      return;
     }
+    entry.sprite.setPosition(x, y);
+    entry.aimAngle = aimAngle ?? entry.aimAngle;
+    if (entry.weaponSprite) {
+      this._positionWeaponSprite(entry.sprite, entry.weaponSprite, entry.aimAngle);
+    }
+  }
+
+  updatePlayerWeapon(playerId, weaponType) {
+    const entry = players[playerId];
+    if (!entry) return;
+    entry.weaponSprite.setTexture(weaponType);
+    entry.weaponType = weaponType;
   }
 
   shoot(pointer) {
@@ -94,9 +147,32 @@ export class GameScene extends Phaser.Scene {
         type: 'shoot',
         x: this.player.x,
         y: this.player.y,
-        angle: this.aimAngle
+        angle: this.aimAngle,
       }));
     }
+  }
+
+  spawnProjectile(data) {
+    const speed    = data.speed    || 800;
+    const lifetime = data.lifetime || 1500;
+
+    const bulletConfig = {
+      gun:     { r: 4,  color: 0xffffff },
+      rifle:   { r: 3,  color: 0xffff00 },
+      shotgun: { r: 5,  color: 0xff8800 },
+      sniper:  { r: 3,  color: 0x00ffff },
+    };
+    const cfg = bulletConfig[data.weaponType] || bulletConfig.gun;
+
+    const bullet = this.add.circle(data.x, data.y, cfg.r, cfg.color);
+    this.physics.add.existing(bullet);
+    bullet.body.setCircle(cfg.r);
+    bullet.body.setVelocity(
+      Math.cos(data.angle) * speed,
+      Math.sin(data.angle) * speed
+    );
+    this.projectiles.add(bullet);
+    this.time.delayedCall(lifetime, () => bullet.destroy());
   }
 
   spawnZombie(zombieId, x, y) {
@@ -113,9 +189,29 @@ export class GameScene extends Phaser.Scene {
 
   removeZombie(zombieId) {
     const zombie = zombies[zombieId];
-    if (zombie) {
-      zombie.destroy();
-      delete zombies[zombieId];
-    }
+    if (zombie) { zombie.destroy(); delete zombies[zombieId]; }
+  }
+
+  spawnWeaponOnMap(weaponId, x, y, weaponType) {
+    if (weaponsOnMap[weaponId]) return;
+    const sprite = this.add.image(x, y, weaponType)
+      .setScale(5)
+      .setDepth(2)
+      .setAlpha(0.9);
+    // Petite animation de flottement
+    this.tweens.add({
+      targets: sprite,
+      y: y - 6,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+    weaponsOnMap[weaponId] = sprite;
+  }
+
+  removeWeaponOnMap(weaponId) {
+    const sprite = weaponsOnMap[weaponId];
+    if (sprite) { sprite.destroy(); delete weaponsOnMap[weaponId]; }
   }
 }

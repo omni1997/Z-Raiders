@@ -18,7 +18,6 @@ socket.addEventListener('message', (event) => {
   if (data.type === 'confirm') {
     state.setPseudo(data.pseudo);
     confirmPseudo(data.pseudo);
-
     if (state.gameScene) {
       state.gameScene.spawnPlayer(state.id, state.color);
     }
@@ -29,29 +28,20 @@ socket.addEventListener('message', (event) => {
   }
 
   if (data.type === 'move' && state.gameScene) {
-    state.gameScene.updateRemotePlayer(data.id, data.x, data.y, data.color);
+    state.gameScene.updateRemotePlayer(data.id, data.x, data.y, data.color, data.aimAngle);
   }
 
   if (data.type === 'projectile' && state.gameScene) {
-    const bullet = state.gameScene.add.circle(data.x, data.y, 4, 0xffffff);
-    state.gameScene.physics.add.existing(bullet);
-    bullet.body.setCircle(4);
-    bullet.body.setVelocity(
-      Math.cos(data.angle) * 800,
-      Math.sin(data.angle) * 800
-    );
-    state.gameScene.projectiles.add(bullet);
-    state.gameScene.time.delayedCall(1500, () => bullet.destroy());
+    state.gameScene.spawnProjectile(data);
   }
 
   if (data.type === 'respawn' && state.gameScene) {
-    const sprite = players[data.id];
-    if (sprite) {
-      sprite.setPosition(data.x, data.y);
+    const entry = players[data.id];
+    if (entry) {
+      entry.sprite.setPosition(data.x, data.y);
     } else {
       state.gameScene.spawnPlayer(data.id, data.color, data.x, data.y);
     }
-
     if (data.id === getId()) {
       state.gameScene.player.setPosition(data.x, data.y);
     }
@@ -60,13 +50,32 @@ socket.addEventListener('message', (event) => {
   if (data.type === 'zombie_spawn' && state.gameScene) {
     state.gameScene.spawnZombie(data.id, data.x, data.y);
   }
-
   if (data.type === 'zombie_move' && state.gameScene) {
     state.gameScene.updateZombie(data.id, data.x, data.y);
   }
-
   if (data.type === 'zombie_remove' && state.gameScene) {
     state.gameScene.removeZombie(data.id);
+  }
+
+  if (data.type === 'weapon_spawn' && state.gameScene) {
+    state.gameScene.spawnWeaponOnMap(data.id, data.x, data.y, data.weaponType);
+  }
+  if (data.type === 'weapon_remove' && state.gameScene) {
+    state.gameScene.removeWeaponOnMap(data.id);
+  }
+
+  if (data.type === 'weapon_equipped') {
+    state.setCurrentWeapon(data.weaponType);
+    document.getElementById('current-weapon').innerText = `🔫 ${data.weaponType}`;
+
+    // Mettre à jour le sprite de l'arme du joueur local
+    if (state.gameScene) {
+      state.gameScene.updatePlayerWeapon(state.id, data.weaponType);
+    }
+  }
+
+  if (data.type === 'player_weapon' && state.gameScene) {
+    state.gameScene.updatePlayerWeapon(data.playerId, data.weaponType);
   }
 
   if (data.type === 'score_update') {
@@ -74,16 +83,12 @@ socket.addEventListener('message', (event) => {
       document.getElementById('my-score').innerText =
         `${data.zombiesKilled} zombies / ${data.playersKilled} players`;
     }
-
     const topList = document.getElementById('top-players');
     topList.innerHTML = '';
     data.topPlayers.forEach((p, index) => {
       const li = document.createElement('li');
-      let badge = '';
-      if (index === 0) badge = '🥇 ';
-      else if (index === 1) badge = '🥈 ';
-      else if (index === 2) badge = '🥉 ';
-      li.innerText = `${badge}${p.pseudo}: ${p.zombiesKilled} zombies / ${p.playersKilled} players`;
+      const badges = ['🥇 ', '🥈 ', '🥉 '];
+      li.innerText = `${badges[index] || ''}${p.pseudo}: ${p.zombiesKilled} zombies / ${p.playersKilled} players`;
       topList.appendChild(li);
     });
   }
