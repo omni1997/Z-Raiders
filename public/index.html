@@ -2,93 +2,382 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Zombie Game</title>
+  <title>Z-RAIDERS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
+    :root {
+      --blood:  #8b0000;
+      --blood2: #cc0000;
+      --gore:   #ff1a1a;
+      --dark:   #0a0a0a;
+      --darker: #050505;
+      --panel:  #0f0f0f;
+      --border: #3a0000;
+      --text:   #c8c8c8;
+      --dim:    #555;
+      --glow:   0 0 8px #cc000088, 0 0 20px #8b000044;
     }
-    canvas {
-      display: block;
-      max-width: 100%;
-      max-height: 100%;
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--darker);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      overflow: hidden;
+    }
+
+    /* Scanlines */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent, transparent 2px,
+        rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Flicker CRT */
+    @keyframes flicker {
+      0%,100%{ opacity:1; } 92%{ opacity:1; } 93%{ opacity:0.85; }
+      94%{ opacity:1; } 96%{ opacity:0.9; } 97%{ opacity:1; }
+    }
+    body { animation: flicker 9s infinite; }
+
+    /* Désactivation effets */
+    body.no-scanlines::after { display: none; }
+    body.no-flicker          { animation: none !important; }
+
+    /* Layout */
+    #layout { display:flex; height:100vh; width:100vw; }
+
+    #game-zone {
+      flex: 1;
+      position: relative;
+      background: #000;
+      border-right: 2px solid var(--blood);
+      box-shadow: inset -6px 0 30px #8b000033;
+    }
+
+    canvas { display:block; width:100%!important; height:100%!important; }
+
+    /* Panel */
+    #panel {
+      width: 260px;
+      min-width: 260px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      position: relative;
+      overflow: hidden;
+      animation: pulse-panel 5s ease-in-out infinite;
+    }
+    @keyframes pulse-panel {
+      0%,100%{ box-shadow: inset 0 0 12px #8b000022; }
+      50%    { box-shadow: inset 0 0 24px #cc000033; }
+    }
+
+    /* Grain */
+    #panel::before {
+      content:'';
+      position:absolute;
+      inset:0;
+      opacity:.04;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      pointer-events:none;
+      z-index:0;
+    }
+
+    /* Coins angulaires */
+    .corner-box {
+      position: relative;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      z-index: 1;
+    }
+    .corner-box::before,.corner-box::after,
+    .corner-box>.cb-br::before,.corner-box>.cb-br::after {
+      content:''; position:absolute;
+      width:10px; height:10px;
+      border-color: var(--gore); border-style:solid;
+    }
+    .corner-box::before  { top:4px;    left:4px;  border-width:2px 0 0 2px; }
+    .corner-box::after   { top:4px;    right:4px; border-width:2px 2px 0 0; }
+    .corner-box>.cb-br::before { bottom:4px; left:4px;  border-width:0 0 2px 2px; }
+    .corner-box>.cb-br::after  { bottom:4px; right:4px; border-width:0 2px 2px 0; }
+
+    /* Titre */
+    #game-title {
+      font-family: 'Creepster', cursive;
+      font-size: 30px;
+      color: var(--gore);
+      text-shadow: var(--glow);
+      letter-spacing: 5px;
+      text-align: center;
+      padding: 12px 0 8px;
+      z-index:1;
+      position:relative;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Boutons options CRT */
+    #crt-options {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      z-index: 1;
+      position: relative;
+    }
+
+    .opt-btn {
+      background: transparent;
+      border: 1px solid var(--blood);
+      color: var(--dim);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding: 3px 7px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all .2s;
+    }
+    .opt-btn:hover  { border-color: var(--gore); color: var(--gore); }
+    .opt-btn.active { border-color: var(--gore); color: var(--gore); box-shadow: var(--glow); }
+
+    /* Player info */
+    #player-info { display:flex; align-items:center; gap:10px; }
+
+    #color-box {
+      width:28px; height:28px;
+      border:2px solid var(--blood2);
+      box-shadow: var(--glow);
+      flex-shrink:0;
+      clip-path: polygon(0 0,90% 0,100% 10%,100% 100%,10% 100%,0 90%);
+    }
+
+    #info { font-size:9px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
+    #form { display:flex; flex-direction:column; gap:5px; flex:1; }
+
+    #pseudo {
+      background:#1a0000; border:1px solid var(--blood);
+      color:var(--text); font-family:'Share Tech Mono',monospace;
+      font-size:12px; padding:5px 8px; outline:none;
+      clip-path: polygon(0 0,97% 0,100% 15%,100% 100%,3% 100%,0 85%);
+      transition: border-color .2s, box-shadow .2s;
+    }
+    #pseudo:focus { border-color:var(--gore); box-shadow:var(--glow); }
+    #pseudo::placeholder { color:#4a0000; }
+
+    #send {
+      background:var(--blood); color:#fff;
+      font-family:'Share Tech Mono',monospace; font-size:11px;
+      letter-spacing:2px; text-transform:uppercase;
+      border:none; padding:5px 10px; cursor:pointer;
+      clip-path: polygon(0 0,94% 0,100% 20%,100% 100%,6% 100%,0 80%);
+      transition: background .2s, box-shadow .2s;
+    }
+    #send:hover { background:var(--gore); box-shadow:var(--glow); }
+
+    /* Weapon HUD */
+    #weapon-hud {
+      display:flex; align-items:center; gap:8px;
+      margin-top:4px; padding:5px 8px;
+      background:#1a0000; border:1px solid var(--border);
+      clip-path: polygon(0 0,96% 0,100% 30%,100% 100%,4% 100%,0 70%);
+    }
+    #weapon-icon { font-size:16px; filter: drop-shadow(0 0 4px var(--blood2)); }
+    #current-weapon {
+      font-size:11px; color:var(--gore);
+      letter-spacing:2px; text-transform:uppercase;
+      text-shadow:0 0 6px var(--blood2);
+    }
+
+    /* Scoreboard */
+    #scoreboard { flex-shrink:0; }
+
+    .section-title {
+      font-family:'Creepster',cursive; font-size:15px;
+      color:var(--blood2); letter-spacing:3px;
+      text-transform:uppercase; margin-bottom:8px;
+      text-shadow:0 0 6px #8b000066;
+    }
+
+    #my-score {
+      font-size:11px; color:var(--gore); letter-spacing:1px;
+      background:#1a0000; padding:4px 8px;
+      border-left:3px solid var(--gore); margin-bottom:8px;
+      text-shadow:0 0 4px var(--blood2);
+    }
+
+    #top-players { list-style:none; display:flex; flex-direction:column; gap:4px; }
+    #top-players li {
+      font-size:10px; padding:3px 8px;
+      border-left:2px solid var(--blood); color:var(--text);
+      transition: border-color .2s, color .2s;
+    }
+    #top-players li:hover { border-color:var(--gore); color:#fff; }
+    #top-players li:first-child { border-color:var(--gore); }
+
+    /* Chat */
+    #chat { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+    #messages {
+      flex:1; overflow-y:auto; padding:10px 14px;
+      display:flex; flex-direction:column; gap:5px;
+      scrollbar-width:thin; scrollbar-color:var(--blood) transparent;
+    }
+    #messages::-webkit-scrollbar { width:4px; }
+    #messages::-webkit-scrollbar-thumb { background:var(--blood); }
+
+    .msg-entry {
+      display:flex; align-items:center; gap:6px;
+      font-size:11px; animation:fadeIn .3s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateX(-5px)} to{opacity:1} }
+
+    .msg-color {
+      width:8px; height:8px; flex-shrink:0;
+      clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);
+    }
+
+    #chat-input {
+      display:flex; gap:6px; padding:10px 14px;
+      border-top:1px solid var(--border); background:#0a0000; flex-shrink:0;
+    }
+
+    #message {
+      flex:1; background:#1a0000; border:1px solid var(--blood);
+      color:var(--text); font-family:'Share Tech Mono',monospace;
+      font-size:11px; padding:5px 8px; outline:none;
+      transition:border-color .2s;
+    }
+    #message:focus { border-color:var(--gore); }
+    #message::placeholder { color:#4a0000; }
+
+    #send-msg {
+      background:transparent; border:1px solid var(--blood);
+      color:var(--blood2); font-family:'Share Tech Mono',monospace;
+      font-size:10px; letter-spacing:1px; padding:5px 10px;
+      cursor:pointer; text-transform:uppercase; transition:all .2s;
+    }
+    #send-msg:hover { background:var(--blood); color:#fff; box-shadow:var(--glow); }
+
+    .blood-sep {
+      height:2px;
+      background:linear-gradient(90deg,transparent,var(--blood2),transparent);
+      opacity:.5; flex-shrink:0;
+    }
+
+    /* Drips */
+    @keyframes drip {
+      0%  { height:0; opacity:0; }
+      20% { opacity:.9; }
+      100%{ opacity:.4; }
+    }
+    .drip {
+      position:absolute; top:0; width:2px;
+      background:linear-gradient(to bottom,var(--blood2),transparent);
+      border-radius:0 0 3px 3px;
+      animation: drip linear infinite;
     }
   </style>
 </head>
-<body class="h-screen w-screen flex font-sans overflow-hidden">
+<body>
+
+<div id="layout">
 
   <!-- Zone de jeu -->
-  <div id="game-zone" class="w-[80%] bg-gray-100 relative">
-    <!-- Ton canvas ou contenu -->
-  </div>
+  <div id="game-zone"></div>
 
-  <!-- Zone chat (colonne droite) -->
-  <div class="w-[20%] h-full flex flex-col bg-white border-l overflow-hidden">
+  <!-- Panneau droit -->
+  <div id="panel">
 
-    <!-- Zone info (20%) -->
-    <div class="h-[20%] px-4 py-6 border-b shrink-0">
-      <div class="flex items-center gap-4 h-full">
-        <div id="color-box" class="w-8 h-8 border"></div>
-        <div id="form" class="flex flex-col justify-center">
-          <div id="info" class="mb-1 text-xs text-gray-600">Waiting for server data...</div>
-          <input
-            type="text"
-            id="pseudo"
-            placeholder="Enter your username"
-            class="mb-1 px-2 py-1 border rounded"
-          />
-          <button id="send" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
-            Send
-          </button>
+    <!-- Drips déco -->
+    <div class="drip" style="left:15px; height:45px; animation-duration:3.5s; animation-delay:0s"></div>
+    <div class="drip" style="left:70px; height:28px; animation-duration:5s;   animation-delay:1.2s"></div>
+    <div class="drip" style="left:140px;height:60px; animation-duration:2.9s; animation-delay:0.5s"></div>
+    <div class="drip" style="left:210px;height:32px; animation-duration:4.2s; animation-delay:1.8s"></div>
+
+    <!-- Titre -->
+    <div id="game-title">☣ Z-RAIDERS ☣</div>
+
+    <!-- Options CRT -->
+    <div id="crt-options">
+      <button onclick="toggleScanlines()" id="btn-scan" class="opt-btn active">📺 Scanlines ON</button>
+      <button onclick="toggleFlicker()"   id="btn-flick" class="opt-btn active">💡 Flicker ON</button>
+    </div>
+
+    <!-- Info joueur -->
+    <div class="corner-box"><div class="cb-br"></div>
+      <div id="player-info">
+        <div id="color-box"></div>
+        <div id="form">
+          <div id="info">AWAITING SIGNAL...</div>
+          <input type="text" id="pseudo" placeholder="ENTER CALLSIGN" />
+          <button id="send">⚡ DEPLOY</button>
+          <div id="weapon-hud">
+            <span id="weapon-icon">🔫</span>
+            <span id="current-weapon">GUN</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <div id="scoreboard" class="h-[20%] p-4 bg-gray-50 border-b rounded-md shadow-sm text-sm flex flex-col gap-2">
-      <!-- Personal score -->
-      <div class="flex items-center justify-between">
-        <span class="font-semibold text-gray-700">Your Score:</span>
-        <span id="my-score" class="font-bold text-blue-600">0 zombies / 0 players</span>
-      </div>
+    <div class="blood-sep"></div>
 
-      <!-- Separator -->
-      <div class="border-t border-gray-300 my-1"></div>
-
-      <!-- Top players -->
-      <div class="font-semibold text-gray-700">Top Players:</div>
-      <ol id="top-players" class="list-decimal list-inside space-y-1 text-gray-800"></ol>
+    <!-- Scoreboard -->
+    <div class="corner-box" id="scoreboard"><div class="cb-br"></div>
+      <div class="section-title">☠ Score</div>
+      <div id="my-score">0 zombies / 0 players</div>
+      <div class="section-title" style="font-size:12px;margin-bottom:6px;">🏆 Survivors</div>
+      <ol id="top-players"></ol>
     </div>
 
-    <!-- Chat (zone visible uniquement après pseudo confirmé) -->
-    <div id="chat" class="flex flex-col h-[80%]" style="display: none;">
+    <div class="blood-sep"></div>
 
-      <!-- Messages (70%) avec scroll -->
-      <div id="messages" class="h-[90%] overflow-y-auto p-4 space-y-2 bg-gray-50 text-sm">
-        <!-- messages dynamiques ici -->
-      </div>
-
-      <!-- Input (10%) fixée -->
-      <div id="chat-input" class="h-[10%] flex gap-2 p-4 border-t bg-white">
-        <input
-          type="text"
-          id="message"
-          placeholder="Type a message..."
-          class="flex-1 px-2 py-1 border rounded"
-        />
-        <button
-          id="send-msg"
-          class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-        >
-          Send
-        </button>
+    <!-- Chat -->
+    <div id="chat" style="display:none;">
+      <div id="messages"></div>
+      <div id="chat-input">
+        <input type="text" id="message" placeholder="TRANSMIT..." />
+        <button id="send-msg">SEND</button>
       </div>
     </div>
 
   </div>
+</div>
 
-  <script type="module" src="main.js"></script>
+<script>
+  let scanlines = true;
+  let flicker   = true;
+
+  function toggleScanlines() {
+    scanlines = !scanlines;
+    const btn = document.getElementById('btn-scan');
+    btn.classList.toggle('active', scanlines);
+    btn.innerText = `📺 Scanlines ${scanlines ? 'ON' : 'OFF'}`;
+    document.body.classList.toggle('no-scanlines', !scanlines);
+  }
+
+  function toggleFlicker() {
+    flicker = !flicker;
+    const btn = document.getElementById('btn-flick');
+    btn.classList.toggle('active', flicker);
+    btn.innerText = `💡 Flicker ${flicker ? 'ON' : 'OFF'}`;
+    document.body.classList.toggle('no-flicker', !flicker);
+  }
+</script>
+
+<script type="module" src="main.js"></script>
 </body>
 </html>
