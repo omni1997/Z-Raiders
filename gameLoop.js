@@ -1,5 +1,5 @@
 const { randomUUID } = require('crypto');
-const { clients, projectiles, zombies, weaponsOnMap, scores } = require('./state');
+const { clients, projectiles, zombies, weaponsOnMap, scores, walls } = require('./state');
 const { distance, randomPosition, getTopPlayers, broadcast } = require('./utils');
 const {
   PROJECTILE_RADIUS,
@@ -17,7 +17,14 @@ const WEAPON_PICKUP_RADIUS = 25;
 
 function startGameLoop() {
 
-  // pawn zombies
+  // Spawn walls
+  for (let i = 0; i < 5; i++) {
+    const id = 'wall-' + i;
+    const pos = randomPosition();
+    walls.set(id, { id, x: pos.x, y: pos.y });
+  }
+
+  // Spawn zombies
   setInterval(() => {
     const id = 'z-' + randomUUID();
     const pos = randomPosition();

@@ -13,12 +13,21 @@ export class GameScene extends Phaser.Scene {
 
   preload() {
     this.load.image('map',     'assets/map.png');
-    this.load.image('player',  'assets/player.png');
+    //this.load.image('player',  'assets/player.png');
     this.load.image('sight',   'assets/sight.png');
     this.load.image('gun',     'assets/guns/gun.png');
     this.load.image('rifle',   'assets/guns/rifle.png');
     this.load.image('shotgun', 'assets/guns/shotgun.png');
     this.load.image('sniper',  'assets/guns/sniper.png');
+    this.load.image('wall1',   'assets/building/wall1.png');
+  }
+
+  spawnWall(wallId, x, y) {
+    const sprite = this.add.image(x, y, 'wall1')
+      .setDisplaySize(32, 32)
+      .setDepth(3);
+    this.walls = this.walls || {};
+    this.walls[wallId] = sprite;
   }
 
   create() {
