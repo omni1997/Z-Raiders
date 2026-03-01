@@ -1,5 +1,5 @@
 const { randomUUID } = require('crypto');
-const { clients, projectiles, scores } = require('./state');
+const { clients, projectiles, scores, walls } = require('./state');
 const { randomPosition, broadcast } = require('./utils');
 const { WEAPONS } = require('./config');
 
@@ -11,13 +11,18 @@ function handleMessage(ws, data) {
   // Pseudo registration
   if (msg.type === 'pseudo') {
     client.pseudo = msg.pseudo;
-    client.weapon = 'gun';       // arme par défaut
+    client.weapon = 'gun';
     client.lastShotAt = 0;
     scores.set(client.id, { zombiesKilled: 0, playersKilled: 0 });
     ws.send(JSON.stringify({ type: 'confirm', pseudo: client.pseudo }));
     ws.send(JSON.stringify({ type: 'respawn', id: client.id, x: client.x, y: client.y }));
-    // Informer le client de son arme de départ
     ws.send(JSON.stringify({ type: 'weapon_equipped', weaponType: client.weapon }));
+
+    // Envoyer les murs au joueur ← ajoute ça
+    for (const wall of walls.values()) {
+      ws.send(JSON.stringify({ type: 'wall_spawn', id: wall.id, x: wall.x, y: wall.y }));
+    }
+
     console.log(`Connected: ${client.pseudo} (${client.id})`);
   }
 

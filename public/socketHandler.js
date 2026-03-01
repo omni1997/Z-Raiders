@@ -8,6 +8,10 @@ import { addMessage, confirmPseudo } from './chat.js';
 socket.addEventListener('message', (event) => {
   const data = JSON.parse(event.data);
 
+  if (data.type === 'wall_spawn' && state.gameScene) {
+    state.gameScene.spawnWall(data.id, data.x, data.y);
+  }
+
   if (data.type === 'init') {
     state.setId(data.id);
     state.setColor(data.color);
