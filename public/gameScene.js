@@ -23,11 +23,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnWall(wallId, x, y) {
-    const sprite = this.add.image(x, y, 'wall1')
+    const sprite = this.physics.add.staticImage(x, y, 'wall1')
       .setDisplaySize(32, 32)
       .setDepth(3);
+    sprite.refreshBody();
+    this.wallGroup.add(sprite);
     this.walls = this.walls || {};
     this.walls[wallId] = sprite;
+
+    // Ajouter collider avec tous les joueurs déjà spawned
+    for (const entry of Object.values(players)) {
+      if (entry && entry.sprite) {
+        this.physics.add.collider(entry.sprite, this.wallGroup);
+      }
+    }
   }
 
   create() {
@@ -35,7 +44,7 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0)
       .setDepth(-1)
       .setDisplaySize(MAP_WIDTH, MAP_HEIGHT);
-
+    this.wallGroup = this.physics.add.staticGroup();
     this.physics.world.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
     this.cameras.main.setBounds(0, 0, MAP_WIDTH, MAP_HEIGHT);
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -127,6 +136,10 @@ export class GameScene extends Phaser.Scene {
     players[playerId] = { sprite, weaponSprite, aimAngle: 0, weaponType };
 
     if (playerId === id) this.player = sprite;
+
+    if (this.wallGroup) {
+      this.physics.add.collider(sprite, this.wallGroup);
+    }
   }
 
   updateRemotePlayer(playerId, x, y, playerColor, aimAngle) {
@@ -182,6 +195,12 @@ export class GameScene extends Phaser.Scene {
     );
     this.projectiles.add(bullet);
     this.time.delayedCall(lifetime, () => bullet.destroy());
+
+    if (this.wallGroup) {
+      this.physics.add.overlap(bullet, this.wallGroup, () => {
+        bullet.destroy();
+      });
+    }
   }
 
   spawnZombie(zombieId, x, y) {
