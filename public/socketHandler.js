@@ -22,9 +22,7 @@ socket.addEventListener('message', (event) => {
   if (data.type === 'confirm') {
     state.setPseudo(data.pseudo);
     confirmPseudo(data.pseudo);
-    if (state.gameScene) {
-      state.gameScene.spawnPlayer(state.id, state.color);
-    }
+    if (state.gameScene) state.gameScene.spawnPlayer(state.id, state.color);
   }
 
   if (data.type === 'chat') {
@@ -46,9 +44,30 @@ socket.addEventListener('message', (event) => {
     } else {
       state.gameScene.spawnPlayer(data.id, data.color, data.x, data.y);
     }
-    if (data.id === getId()) {
-      state.gameScene.player.setPosition(data.x, data.y);
-    }
+    if (data.id === getId()) state.gameScene.player.setPosition(data.x, data.y);
+  }
+
+  if (data.type === 'hp_update' && state.gameScene) {
+    state.gameScene.updateHp(data.id, data.hp, data.maxHp);
+  }
+
+  // Mise à jour des slots du joueur local
+  if (data.type === 'slots_update') {
+    state.setRangedWeapon(data.rangedWeapon);
+    state.setMeleeWeapon(data.meleeWeapon);
+    state.setActiveSlot(data.activeSlot);
+    if (state.gameScene) state.gameScene.onSlotsUpdate(data);
+    updateSlotsHUD(data);
+  }
+
+  // Mise à jour de l'arme visible d'un autre joueur
+  if (data.type === 'player_slot' && state.gameScene) {
+    state.gameScene.updatePlayerSlot(data.playerId, data.activeSlot, data.rangedWeapon);
+  }
+
+  // Animation coup de couteau reçue d'un autre joueur
+  if (data.type === 'melee_swing' && state.gameScene) {
+    state.gameScene.playMeleeSwing(data.from, data.x, data.y, data.angle);
   }
 
   if (data.type === 'zombie_spawn' && state.gameScene) {
@@ -68,20 +87,6 @@ socket.addEventListener('message', (event) => {
     state.gameScene.removeWeaponOnMap(data.id);
   }
 
-  if (data.type === 'weapon_equipped') {
-    state.setCurrentWeapon(data.weaponType);
-    document.getElementById('current-weapon').innerText = `🔫 ${data.weaponType}`;
-
-    // Mettre à jour le sprite de l'arme du joueur local
-    if (state.gameScene) {
-      state.gameScene.updatePlayerWeapon(state.id, data.weaponType);
-    }
-  }
-
-  if (data.type === 'player_weapon' && state.gameScene) {
-    state.gameScene.updatePlayerWeapon(data.playerId, data.weaponType);
-  }
-
   if (data.type === 'score_update') {
     if (data.playerId === state.id) {
       document.getElementById('my-score').innerText =
@@ -97,3 +102,17 @@ socket.addEventListener('message', (event) => {
     });
   }
 });
+
+function updateSlotsHUD(data) {
+  const slot1El = document.getElementById('slot-ranged');
+  const slot2El = document.getElementById('slot-melee');
+  if (!slot1El || !slot2El) return;
+
+  const icons = { gun: '🔫', rifle: '🎯', shotgun: '💥', sniper: '🔭', knife: '🔪' };
+
+  slot1El.innerText  = `${icons[data.rangedWeapon] || '🔫'} ${data.rangedWeapon.toUpperCase()}`;
+  slot2El.innerText  = `${icons[data.meleeWeapon]  || '🔪'} ${data.meleeWeapon.toUpperCase()}`;
+
+  slot1El.classList.toggle('slot-active', data.activeSlot === 'ranged');
+  slot2El.classList.toggle('slot-active', data.activeSlot === 'melee');
+}

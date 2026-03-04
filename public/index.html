@@ -188,18 +188,35 @@
     }
     #send:hover { background:var(--gore); box-shadow:var(--glow); }
 
-    /* Weapon HUD */
-    #weapon-hud {
-      display:flex; align-items:center; gap:8px;
-      margin-top:4px; padding:5px 8px;
-      background:#1a0000; border:1px solid var(--border);
+    /* Slots HUD */
+    #slots-hud {
+      display: flex; gap: 6px; margin-top: 4px;
+    }
+    .slot {
+      flex: 1; text-align: center;
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      padding: 5px 6px; background: #1a0000;
+      border: 1px solid var(--border); color: var(--dim);
+      clip-path: polygon(0 0,94% 0,100% 20%,100% 100%,6% 100%,0 80%);
+      transition: all .2s;
+    }
+    .slot-active {
+      border-color: var(--gore); color: var(--gore);
+      background: #2a0000;
+      box-shadow: 0 0 8px #cc000055;
+    }
+
+    /* HP HUD */
+    #hp-hud {
+      display:flex; align-items:center;
+      margin-top:4px; padding:4px 8px;
+      background:#001a00; border:1px solid #004400;
       clip-path: polygon(0 0,96% 0,100% 30%,100% 100%,4% 100%,0 70%);
     }
-    #weapon-icon { font-size:16px; filter: drop-shadow(0 0 4px var(--blood2)); }
-    #current-weapon {
-      font-size:11px; color:var(--gore);
-      letter-spacing:2px; text-transform:uppercase;
-      text-shadow:0 0 6px var(--blood2);
+    #hp-display {
+      font-size:11px; color:#44ff44;
+      letter-spacing:2px;
+      text-shadow:0 0 6px #44ff4488;
     }
 
     /* Scoreboard */
@@ -325,9 +342,12 @@
           <div id="info">AWAITING SIGNAL...</div>
           <input type="text" id="pseudo" placeholder="ENTER CALLSIGN" />
           <button id="send">⚡ DEPLOY</button>
-          <div id="weapon-hud">
-            <span id="weapon-icon">🔫</span>
-            <span id="current-weapon">GUN</span>
+          <div id="slots-hud">
+            <div id="slot-ranged" class="slot slot-active">🔫 GUN</div>
+            <div id="slot-melee"  class="slot">🔪 KNIFE</div>
+          </div>
+          <div id="hp-hud">
+            <span id="hp-display">❤ 100 / 100</span>
           </div>
         </div>
       </div>
