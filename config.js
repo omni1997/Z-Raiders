@@ -63,8 +63,8 @@ module.exports = {
       name: 'knife',
       type: 'melee',
       damage: 45,
-      fireRate: 600,       // cooldown entre deux coups (ms)
-      range: 65,           // rayon de détection du coup
+      fireRate: 600,       
+      range: 65,           // Not used, client send who is hit. Need to be update. 
     },
   },
 };

@@ -8,7 +8,7 @@ import {
 
 const WEAPON_OFFSET_X = 18;
 const WEAPON_OFFSET_Y = 5;
-const KNIFE_RANGE     = 50;
+const KNIFE_RANGE     = 180;
 const PLAYER_MAX_HP   = 100;
 const BAR_WIDTH       = 40;
 const BAR_HEIGHT      = 5;
@@ -143,7 +143,7 @@ export class GameScene extends Phaser.Scene {
     const ARC = Math.PI / 2.5;
     this.swingGraphics.lineStyle(3, 0xffffff, 0.75);
     this.swingGraphics.beginPath();
-    this.swingGraphics.arc(x, y, KNIFE_RANGE, angle - ARC / 2, angle + ARC / 2, false);
+    this.swingGraphics.arc(x, y, KNIFE_RANGE / 2, angle - ARC / 2, angle + ARC / 2, false);
     this.swingGraphics.strokePath();
     this.time.delayedCall(durationMs, () => this.swingGraphics.clear());
   }
