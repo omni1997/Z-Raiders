@@ -6,8 +6,8 @@ import {
   setGameScene,
 } from './state.js';
 
-const WEAPON_OFFSET_X = 18;
-const WEAPON_OFFSET_Y = 5;
+const WEAPON_OFFSET_X = 0;
+const WEAPON_OFFSET_Y = 0;
 const KNIFE_RANGE     = 180;
 const PLAYER_MAX_HP   = 100;
 const BAR_WIDTH       = 40;
@@ -39,6 +39,10 @@ export class GameScene extends Phaser.Scene {
     this.load.image('knife',   'assets/guns/knife.png');
     this.load.image('wall1',   'assets/building/wall1.png');
     this.load.spritesheet('zombie', 'assets/zombie.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet('player', 'assets/player.png', {
       frameWidth: 32,
       frameHeight: 32,
     });
@@ -108,7 +112,28 @@ export class GameScene extends Phaser.Scene {
         });
       }
     }
+
+    const playerDirs = [
+      { key: 'player_down',  row: 0 },
+      { key: 'player_left',  row: 1 },
+      { key: 'player_right', row: 2 },
+      { key: 'player_up',    row: 3 },
+    ];
+    for (const { key, row } of playerDirs) {
+      if (!this.anims.exists(key)) {
+        this.anims.create({
+          key,
+          frames: this.anims.generateFrameNumbers('player', {
+            start: row * 4, end: row * 4 + 3,
+          }),
+          frameRate: 8,
+          repeat: -1,
+        });
+      }
+    }
   }
+
+
 
   _onPointerDown(pointer) {
     if (!pointer.leftButtonDown() || !this.player) return;
@@ -185,9 +210,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   _positionWeaponSprite(playerSprite, weaponSprite, angle) {
-    const ox = Math.cos(angle) * WEAPON_OFFSET_X - Math.sin(angle) * WEAPON_OFFSET_Y;
-    const oy = Math.sin(angle) * WEAPON_OFFSET_X + Math.cos(angle) * WEAPON_OFFSET_Y;
-    weaponSprite.setPosition(playerSprite.x + ox, playerSprite.y + oy);
+    // const ox = Math.cos(angle) * WEAPON_OFFSET_X - Math.sin(angle) * WEAPON_OFFSET_Y;
+    // const oy = Math.sin(angle) * WEAPON_OFFSET_X + Math.cos(angle) * WEAPON_OFFSET_Y;
+    // weaponSprite.setPosition(playerSprite.x + ox, playerSprite.y + oy);
+    weaponSprite.setPosition(playerSprite.x, playerSprite.y);
     weaponSprite.setRotation(angle + Math.PI / 2);
   }
 
@@ -286,6 +312,20 @@ export class GameScene extends Phaser.Scene {
     if (this.cursors.down.isDown)  vy =  speed;
     this.player.body.setVelocity(vx, vy);
 
+    // Animation direction joueur local
+    if (vx !== 0 || vy !== 0) {
+      let anim;
+      if (Math.abs(vx) > Math.abs(vy)) {
+        anim = vx > 0 ? 'player_right' : 'player_left';
+      } else {
+        anim = vy > 0 ? 'player_down' : 'player_up';
+      }
+      if (this.player.anims.currentAnim?.key !== anim) this.player.play(anim);
+    } else {
+      this.player.anims.stop();
+      this.player.setFrame(0);
+    }
+
     if (vx !== 0 || vy !== 0) {
       socket.send(JSON.stringify({
         type: 'move', x: this.player.x, y: this.player.y, aimAngle: this.aimAngle,
@@ -309,18 +349,27 @@ export class GameScene extends Phaser.Scene {
       players[playerId].sprite.setPosition(x, y);
       return;
     }
-    const sprite = this.add.rectangle(x, y, 40, 40,
-      Phaser.Display.Color.HexStringToColor(playerColor).color);
-    this.physics.add.existing(sprite);
+
+    // Sprite au lieu du rectangle
+    const sprite = this.physics.add.sprite(x, y, 'player');
+    sprite.setScale(2);
+    sprite.setDepth(4);
     sprite.body.setCollideWorldBounds(true);
 
+    // Applique la couleur du joueur comme teinte
+    const color = Phaser.Display.Color.HexStringToColor(playerColor).color;
+    sprite.setTint(color);
+
+    sprite.play('player_down');
+
     const weaponSprite = this.add.image(x, y, weaponType)
-      .setScale(5).setDepth(5).setOrigin(0.2, 0.5);
+      .setScale(3).setDepth(5).setOrigin(0.5, 0.5);
 
     players[playerId] = {
       sprite, weaponSprite, aimAngle: 0, weaponType,
       hp: PLAYER_MAX_HP, maxHp: PLAYER_MAX_HP,
     };
+
     if (playerId === id) this.player = sprite;
     if (this.wallGroup) this.physics.add.collider(sprite, this.wallGroup);
   }
@@ -328,8 +377,25 @@ export class GameScene extends Phaser.Scene {
   updateRemotePlayer(playerId, x, y, playerColor, aimAngle) {
     if (playerId === id) return;
     const entry = players[playerId];
-    if (!entry) { this.spawnPlayer(playerId, playerColor || '#ffffff', x, y); return; }
+    if (!entry) {
+      this.spawnPlayer(playerId, playerColor || '#ffffff', x, y);
+      return;
+    }
+    const prev = { x: entry.sprite.x, y: entry.sprite.y };
     entry.sprite.setPosition(x, y);
+
+    // Direction de déplacement → animation
+    const dx = x - prev.x, dy = y - prev.y;
+    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+      let anim;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        anim = dx > 0 ? 'player_right' : 'player_left';
+      } else {
+        anim = dy > 0 ? 'player_down' : 'player_up';
+      }
+      if (entry.sprite.anims.currentAnim?.key !== anim) entry.sprite.play(anim);
+    }
+
     entry.aimAngle = aimAngle ?? entry.aimAngle;
     if (entry.weaponSprite) this._positionWeaponSprite(entry.sprite, entry.weaponSprite, entry.aimAngle);
   }
