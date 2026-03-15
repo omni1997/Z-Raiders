@@ -38,6 +38,10 @@ export class GameScene extends Phaser.Scene {
     this.load.image('sniper',  'assets/guns/sniper.png');
     this.load.image('knife',   'assets/guns/knife.png');
     this.load.image('wall1',   'assets/building/wall1.png');
+    this.load.spritesheet('zombie', 'assets/zombie.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
   }
 
   spawnWall(wallId, x, y) {
@@ -83,6 +87,27 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.on('pointerdown', this._onPointerDown, this);
+
+    const zombieDirs = [
+      { key: 'zombie_down',  row: 0 },
+      { key: 'zombie_left',  row: 1 },
+      { key: 'zombie_right', row: 2 },
+      { key: 'zombie_up',    row: 3 },
+    ];
+
+    for (const { key, row } of zombieDirs) {
+      if (!this.anims.exists(key)) {
+        this.anims.create({
+          key,
+          frames: this.anims.generateFrameNumbers('zombie', {
+            start: row * 4,
+            end:   row * 4 + 3,
+          }),
+          frameRate: 6,
+          repeat: -1,
+        });
+      }
+    }
   }
 
   _onPointerDown(pointer) {
@@ -337,14 +362,39 @@ export class GameScene extends Phaser.Scene {
 
   spawnZombie(zombieId, x, y) {
     if (zombies[zombieId]) return;
-    const zombie = this.add.rectangle(x, y, 30, 30, 0xff0000);
-    this.physics.add.existing(zombie);
+    const zombie = this.physics.add.sprite(x, y, 'zombie');
+    zombie.setDepth(4);
+    zombie.setScale(2);
+    zombie.play('zombie_down'); 
+
     zombies[zombieId] = zombie;
   }
 
   updateZombie(zombieId, x, y) {
     const zombie = zombies[zombieId];
-    if (zombie) zombie.setPosition(x, y);
+    if (!zombie) return;
+
+    const prevX = zombie.x;
+    const prevY = zombie.y;
+
+    zombie.setPosition(x, y);
+
+    // Détermine la direction de déplacement
+    const dx = x - prevX;
+    const dy = y - prevY;
+
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return; // immobile, pas de changement d'anim
+
+    let anim;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      anim = dx > 0 ? 'zombie_right' : 'zombie_left';
+    } else {
+      anim = dy > 0 ? 'zombie_down' : 'zombie_up';
+    }
+
+    if (zombie.anims.currentAnim?.key !== anim) {
+      zombie.play(anim);
+    }
   }
 
   removeZombie(zombieId) {
