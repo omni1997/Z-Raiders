@@ -14,10 +14,15 @@ const {
   PLAYER_MAX_HP,
   WEAPONS,
 } = require('./config');
+const { generateBuildings } = require('./buildingLoader');
 
-const WALL_SIZE = 32;
+const WALL_SIZE = 64;
 const WEAPON_TYPES = Object.keys(WEAPONS);
 const WEAPON_PICKUP_RADIUS = 25;
+
+// Dimensions du monde — à ajuster selon votre config
+const WORLD_W = 2000;
+const WORLD_H = 2000;
 
 function wallCollision(obj, wall) {
   return (
@@ -39,12 +44,14 @@ function respawnClient(client) {
 
 function startGameLoop() {
 
-  // Spawn murs
-  for (let i = 0; i < 5; i++) {
-    const id  = 'wall-' + i;
-    const pos = randomPosition();
-    walls.set(id, { id, x: pos.x, y: pos.y });
+  // --- Génération des bâtiments ---
+  const buildingWalls = generateBuildings(WORLD_W, WORLD_H, 3);
+  for (const wall of buildingWalls) {
+    walls.set(wall.id, wall);
   }
+  // Envoyer tous les murs aux clients connectés (si nécessaire au moment du join,
+  // pensez aussi à les envoyer dans votre handler 'join' via ws.send)
+  broadcast({ type: 'walls_init', walls: buildingWalls });
 
   // Spawn zombies
   setInterval(() => {
@@ -150,7 +157,7 @@ function startGameLoop() {
 
       broadcast({ type: 'zombie_move', id: zombie.id, x: zombie.x, y: zombie.y });
 
-      // Contact zombie → joueur : 34 dégâts/s
+      // Contact zombie → joueur : dégâts/s
       for (const client of clients.values()) {
         if (!client.pseudo) continue;
         if (distance(zombie, client) < PLAYER_RADIUS + ZOMBIE_RADIUS) {
@@ -175,14 +182,12 @@ function startGameLoop() {
           weaponsOnMap.delete(wId);
           broadcast({ type: 'weapon_remove', id: wId });
 
-          // Notifier le joueur de son nouveau slot
           ws.send(JSON.stringify({
             type: 'slots_update',
             rangedWeapon: client.rangedWeapon,
             meleeWeapon:  client.meleeWeapon,
             activeSlot:   client.activeSlot,
           }));
-          // Notifier les autres du changement d'arme visible
           broadcast({
             type: 'player_slot',
             playerId:     client.id,
