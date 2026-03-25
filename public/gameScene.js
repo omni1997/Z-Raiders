@@ -50,7 +50,7 @@ export class GameScene extends Phaser.Scene {
 
   spawnWall(wallId, x, y) {
     const sprite = this.physics.add.staticImage(x, y, 'wall1')
-      .setDisplaySize(32, 32).setDepth(3);
+      .setDisplaySize(64, 64).setDepth(3);
     sprite.refreshBody();
     this.wallGroup.add(sprite);
     this.walls = this.walls || {};
