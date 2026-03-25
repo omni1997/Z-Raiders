@@ -46,6 +46,16 @@ export class GameScene extends Phaser.Scene {
       frameWidth: 32,
       frameHeight: 32,
     });
+
+    // --- Sons ---
+    this.load.audio('ambience',      'song/ambience.mp3');
+    this.load.audio('snd_gun',       'song/gun.mp3');
+    this.load.audio('snd_knife',     'song/knife.mp3');
+    this.load.audio('snd_rifle',     'song/rifle.mp3');
+    this.load.audio('snd_shotgun',   'song/pompe.mp3');
+    this.load.audio('snd_sniper',    'song/snipe.mp3');
+    this.load.audio('snd_zombie',    'song/zombie.mp3');
+    this.load.audio('snd_respawn',   'song/respawnPlayer.mp3');
   }
 
   spawnWall(wallId, x, y) {
@@ -74,6 +84,19 @@ export class GameScene extends Phaser.Scene {
 
     this.sight = this.add.image(0, 0, 'sight').setDepth(10).setScale(0.5);
     this.input.setDefaultCursor('none');
+
+    // --- Initialisation des sons ---
+    this.sounds = {
+      ambience: this.sound.add('ambience',    { loop: true,  volume: 0.3 }),
+      gun:      this.sound.add('snd_gun',     { loop: false, volume: 0.6 }),
+      knife:    this.sound.add('snd_knife',   { loop: false, volume: 0.7 }),
+      rifle:    this.sound.add('snd_rifle',   { loop: false, volume: 0.6 }),
+      shotgun:  this.sound.add('snd_shotgun', { loop: false, volume: 0.8 }),
+      sniper:   this.sound.add('snd_sniper',  { loop: false, volume: 0.7 }),
+      zombie:   this.sound.add('snd_zombie',  { loop: false, volume: 0.5 }),
+      respawn:  this.sound.add('snd_respawn', { loop: false, volume: 0.6 }),
+    };
+    this.sounds.ambience.play();
 
     // Molette → switch slot
     this.input.on('wheel', () => {
@@ -133,12 +156,17 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-
+  // Joue le son d'un tir selon le type d'arme
+  _playShootSound(weaponType) {
+    const key = weaponType || 'gun';
+    const snd = this.sounds[key] ?? this.sounds.gun;
+    if (snd.isPlaying) snd.stop();
+    snd.play();
+  }
 
   _onPointerDown(pointer) {
     if (!pointer.leftButtonDown() || !this.player) return;
 
-    // Lire activeSlot DEPUIS state directement (pas depuis l'import primitif)
     if (state.activeSlot === 'ranged') {
       socket.send(JSON.stringify({
         type: 'shoot', x: this.player.x, y: this.player.y, angle: this.aimAngle,
@@ -151,7 +179,6 @@ export class GameScene extends Phaser.Scene {
   _doMeleeAttack() {
     const hitIds = [];
 
-    // Détecter joueurs dans la portée
     for (const [pid, entry] of Object.entries(players)) {
       if (pid === id || !entry?.sprite) continue;
       const d = Phaser.Math.Distance.Between(
@@ -161,20 +188,20 @@ export class GameScene extends Phaser.Scene {
       if (d <= KNIFE_RANGE) hitIds.push(pid);
     }
 
-    // Détecter zombies dans la portée
-    // Les zombies sont des sprites Phaser — on lit .x .y directement sur le sprite
     for (const [zid, zombieSprite] of Object.entries(zombies)) {
       if (!zombieSprite) continue;
       const d = Phaser.Math.Distance.Between(
         this.player.x, this.player.y,
         zombieSprite.x, zombieSprite.y
       );
-      if (d <= KNIFE_RANGE) {
-        hitIds.push(zid);
-      }
+      if (d <= KNIFE_RANGE) hitIds.push(zid);
     }
 
     console.debug('[melee] hitIds:', hitIds, '| activeSlot:', state.activeSlot);
+
+    // Son couteau
+    if (this.sounds.knife.isPlaying) this.sounds.knife.stop();
+    this.sounds.knife.play();
 
     socket.send(JSON.stringify({
       type: 'melee_hit',
@@ -184,7 +211,6 @@ export class GameScene extends Phaser.Scene {
       hitIds,
     }));
 
-    // Animation swing locale
     this._drawSwingArc(this.player.x, this.player.y, this.aimAngle, 180);
   }
 
@@ -200,6 +226,9 @@ export class GameScene extends Phaser.Scene {
 
   playMeleeSwing(fromId, x, y, angle) {
     if (fromId === id) return;
+    // Son couteau pour les swings des autres joueurs (volume réduit)
+    const snd = this.sounds.knife;
+    if (!snd.isPlaying) snd.play();
     this._drawSwingArc(x, y, angle, 180);
   }
 
@@ -210,9 +239,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   _positionWeaponSprite(playerSprite, weaponSprite, angle) {
-    // const ox = Math.cos(angle) * WEAPON_OFFSET_X - Math.sin(angle) * WEAPON_OFFSET_Y;
-    // const oy = Math.sin(angle) * WEAPON_OFFSET_X + Math.cos(angle) * WEAPON_OFFSET_Y;
-    // weaponSprite.setPosition(playerSprite.x + ox, playerSprite.y + oy);
     weaponSprite.setPosition(playerSprite.x, playerSprite.y);
     weaponSprite.setRotation(angle + Math.PI / 2);
   }
@@ -222,7 +248,6 @@ export class GameScene extends Phaser.Scene {
     const entry = players[id];
     if (!entry?.weaponSprite || !this.player) return;
 
-    // Lire activeSlot depuis state directement
     const currentWeaponKey = state.activeSlot === 'melee' ? 'knife' : (entry.weaponType || 'gun');
     const cfg = LASER_CONFIG[currentWeaponKey] || LASER_CONFIG.gun;
 
@@ -312,7 +337,6 @@ export class GameScene extends Phaser.Scene {
     if (this.cursors.down.isDown)  vy =  speed;
     this.player.body.setVelocity(vx, vy);
 
-    // Animation direction joueur local
     if (vx !== 0 || vy !== 0) {
       let anim;
       if (Math.abs(vx) > Math.abs(vy)) {
@@ -350,16 +374,13 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Sprite au lieu du rectangle
     const sprite = this.physics.add.sprite(x, y, 'player');
     sprite.setScale(2);
     sprite.setDepth(4);
     sprite.body.setCollideWorldBounds(true);
 
-    // Applique la couleur du joueur comme teinte
     const color = Phaser.Display.Color.HexStringToColor(playerColor).color;
     sprite.setTint(color);
-
     sprite.play('player_down');
 
     const weaponSprite = this.add.image(x, y, weaponType)
@@ -374,6 +395,14 @@ export class GameScene extends Phaser.Scene {
     if (this.wallGroup) this.physics.add.collider(sprite, this.wallGroup);
   }
 
+  respawnPlayer(playerId) {
+    // Son de respawn uniquement pour le joueur local
+    if (playerId === id) {
+      if (this.sounds.respawn.isPlaying) this.sounds.respawn.stop();
+      this.sounds.respawn.play();
+    }
+  }
+
   updateRemotePlayer(playerId, x, y, playerColor, aimAngle) {
     if (playerId === id) return;
     const entry = players[playerId];
@@ -384,7 +413,6 @@ export class GameScene extends Phaser.Scene {
     const prev = { x: entry.sprite.x, y: entry.sprite.y };
     entry.sprite.setPosition(x, y);
 
-    // Direction de déplacement → animation
     const dx = x - prev.x, dy = y - prev.y;
     if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
       let anim;
@@ -408,6 +436,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   spawnProjectile(data) {
+    // Son du tir reçu depuis le serveur (autres joueurs)
+    if (data.fromId !== id) {
+      this._playShootSound(data.weaponType);
+    }
+
     const speed    = data.speed    || 800;
     const lifetime = data.lifetime || 1500;
     const bulletConfig = {
@@ -431,7 +464,12 @@ export class GameScene extends Phaser.Scene {
     const zombie = this.physics.add.sprite(x, y, 'zombie');
     zombie.setDepth(4);
     zombie.setScale(2);
-    zombie.play('zombie_down'); 
+    zombie.play('zombie_down');
+
+    // Son d'apparition zombie (un sur deux pour éviter la saturation)
+    if (Math.random() < 0.5) {
+      if (!this.sounds.zombie.isPlaying) this.sounds.zombie.play();
+    }
 
     zombies[zombieId] = zombie;
   }
@@ -442,14 +480,11 @@ export class GameScene extends Phaser.Scene {
 
     const prevX = zombie.x;
     const prevY = zombie.y;
-
     zombie.setPosition(x, y);
 
-    // Détermine la direction de déplacement
     const dx = x - prevX;
     const dy = y - prevY;
-
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return; // immobile, pas de changement d'anim
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
 
     let anim;
     if (Math.abs(dx) > Math.abs(dy)) {
@@ -457,10 +492,7 @@ export class GameScene extends Phaser.Scene {
     } else {
       anim = dy > 0 ? 'zombie_down' : 'zombie_up';
     }
-
-    if (zombie.anims.currentAnim?.key !== anim) {
-      zombie.play(anim);
-    }
+    if (zombie.anims.currentAnim?.key !== anim) zombie.play(anim);
   }
 
   removeZombie(zombieId) {
