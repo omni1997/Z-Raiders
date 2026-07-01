@@ -41,3 +41,22 @@ The game will be a **Battle Royale**:
 * A map that **gradually shrinks**
 * **Last survivors win**
 * **Cooperation between players** through alliances is possible
+
+---
+
+### 🧪 **Version 0.1**
+
+* Join a game
+* Move a character
+* Pick up a weapon
+* Shoot other entities
+* Add basic zombies
+* Add basic obstacles
+* Add sprites
+* Add sound
+* Add buildings
+* Fix zombie/obstacle hitbox
+
+#### Known issues / TODO
+
+* Melee hit detection is still client-authoritative and must be moved to the server.
