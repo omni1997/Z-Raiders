@@ -51,6 +51,10 @@ socket.addEventListener('message', (event) => {
     state.gameScene.updateHp(data.id, data.hp, data.maxHp);
   }
 
+  if (data.type === 'ammo_update' && state.gameScene) {
+    state.gameScene.updateAmmo(data.ammo, data.magazineSize, data.reloading);
+  }
+
   // Mise à jour des slots du joueur local
   if (data.type === 'slots_update') {
     state.setRangedWeapon(data.rangedWeapon);
@@ -115,4 +119,7 @@ function updateSlotsHUD(data) {
 
   slot1El.classList.toggle('slot-active', data.activeSlot === 'ranged');
   slot2El.classList.toggle('slot-active', data.activeSlot === 'melee');
+
+  const ammoHud = document.getElementById('ammo-hud');
+  if (ammoHud) ammoHud.style.display = data.activeSlot === 'ranged' ? 'flex' : 'none';
 }

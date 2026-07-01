@@ -115,6 +115,12 @@ export class GameScene extends Phaser.Scene {
       socket.send(JSON.stringify({ type: 'switch_slot' }));
     });
 
+    // R → recharger l'arme à distance
+    this.input.keyboard.on('keydown-R', () => {
+      if (!pseudo || state.activeSlot !== 'ranged') return;
+      socket.send(JSON.stringify({ type: 'reload' }));
+    });
+
     this.input.on('pointermove', pointer => {
       const wp = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
       this.sight.setPosition(wp.x, wp.y);
@@ -318,6 +324,13 @@ export class GameScene extends Phaser.Scene {
         hud.style.color = pct > 60 ? '#44ff44' : pct > 30 ? '#ffaa00' : '#ff2222';
       }
     }
+  }
+
+  updateAmmo(ammo, magazineSize, reloading) {
+    const hud = document.getElementById('ammo-display');
+    if (!hud) return;
+    hud.innerText = reloading ? '⏳ RELOADING…' : `🔫 ${ammo} / ${magazineSize}`;
+    hud.style.color = reloading ? '#ffaa00' : (ammo === 0 ? '#ff2222' : '#ffcc44');
   }
 
   onSlotsUpdate(data) {

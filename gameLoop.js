@@ -179,6 +179,8 @@ function startGameLoop() {
         if (distance(weapon, client) < WEAPON_PICKUP_RADIUS) {
           client.rangedWeapon = weapon.type;
           client.lastShotAt   = 0;
+          client.ammo         = WEAPONS[weapon.type].magazineSize;
+          client.reloading    = false;
           weaponsOnMap.delete(wId);
           broadcast({ type: 'weapon_remove', id: wId });
 
@@ -187,6 +189,9 @@ function startGameLoop() {
             rangedWeapon: client.rangedWeapon,
             meleeWeapon:  client.meleeWeapon,
             activeSlot:   client.activeSlot,
+          }));
+          ws.send(JSON.stringify({
+            type: 'ammo_update', ammo: client.ammo, magazineSize: WEAPONS[weapon.type].magazineSize, reloading: false,
           }));
           broadcast({
             type: 'player_slot',

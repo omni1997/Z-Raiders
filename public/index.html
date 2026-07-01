@@ -219,6 +219,19 @@
       text-shadow:0 0 6px #44ff4488;
     }
 
+    /* Ammo HUD */
+    #ammo-hud {
+      display:flex; align-items:center;
+      margin-top:4px; padding:4px 8px;
+      background:#1a1400; border:1px solid #4a3a00;
+      clip-path: polygon(0 0,96% 0,100% 30%,100% 100%,4% 100%,0 70%);
+    }
+    #ammo-display {
+      font-size:11px; color:#ffcc44;
+      letter-spacing:2px;
+      text-shadow:0 0 6px #ffcc4488;
+    }
+
     /* Scoreboard */
     #scoreboard { flex-shrink:0; }
 
@@ -348,6 +361,9 @@
           </div>
           <div id="hp-hud">
             <span id="hp-display">❤ 100 / 100</span>
+          </div>
+          <div id="ammo-hud">
+            <span id="ammo-display">🔫 12 / 12</span>
           </div>
         </div>
       </div>
