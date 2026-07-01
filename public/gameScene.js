@@ -14,6 +14,15 @@ const BAR_WIDTH       = 40;
 const BAR_HEIGHT      = 5;
 const BAR_OFFSET_Y    = 28;
 
+// Mirrors WEAPONS[*].fireRate in config.js — only used to throttle client
+// 'shoot' sends while the mouse is held; the server remains authoritative.
+const RANGED_FIRE_RATE = {
+  gun: 400,
+  rifle: 150,
+  shotgun: 900,
+  sniper: 1200,
+};
+
 const LASER_CONFIG = {
   gun:     { length: 150, color: 0xff4444, alpha: 0.55, width: 1.5 },
   rifle:   { length: 280, color: 0xffff00, alpha: 0.65, width: 1.2 },
@@ -27,6 +36,8 @@ export class GameScene extends Phaser.Scene {
     super('Game');
     setGameScene(this);
     this.aimAngle = 0;
+    this.isFiring = false;
+    this._lastLocalShotAt = 0;
   }
 
   preload() {
@@ -113,7 +124,12 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    this.input.on('pointerdown', this._onPointerDown, this);
+    this.input.on('pointerdown', pointer => {
+      if (!pointer.leftButtonDown() || !this.player) return;
+      this.isFiring = true;
+      this._fireCurrentWeapon();
+    });
+    this.input.on('pointerup', () => { this.isFiring = false; });
 
     const zombieDirs = [
       { key: 'zombie_down',  row: 0 },
@@ -164,9 +180,7 @@ export class GameScene extends Phaser.Scene {
     snd.play();
   }
 
-  _onPointerDown(pointer) {
-    if (!pointer.leftButtonDown() || !this.player) return;
-
+  _fireCurrentWeapon() {
     if (state.activeSlot === 'ranged') {
       socket.send(JSON.stringify({
         type: 'shoot', x: this.player.x, y: this.player.y, angle: this.aimAngle,
@@ -366,6 +380,15 @@ export class GameScene extends Phaser.Scene {
     this._drawLaser();
     this._drawAllHpBars();
     this.updateCamera();
+
+    if (this.isFiring && state.activeSlot === 'ranged') {
+      const weaponType = players[id]?.weaponType || 'gun';
+      const fireRate   = RANGED_FIRE_RATE[weaponType] || RANGED_FIRE_RATE.gun;
+      if (this.time.now - this._lastLocalShotAt >= fireRate) {
+        this._lastLocalShotAt = this.time.now;
+        this._fireCurrentWeapon();
+      }
+    }
   }
 
   spawnPlayer(playerId, playerColor, x = 100, y = 100, weaponType = 'gun') {
