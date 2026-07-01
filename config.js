@@ -24,6 +24,8 @@ module.exports = {
       projectileLifetime: 1500,
       spread: 0.05,
       bulletsPerShot: 1,
+      magazineSize: 12,
+      reloadTime: 1200,
     },
     rifle: {
       name: 'rifle',
@@ -34,6 +36,8 @@ module.exports = {
       projectileLifetime: 2200,
       spread: 0.02,
       bulletsPerShot: 1,
+      magazineSize: 30,
+      reloadTime: 1800,
     },
     shotgun: {
       name: 'shotgun',
@@ -44,6 +48,8 @@ module.exports = {
       projectileLifetime: 700,
       spread: 0.15,
       bulletsPerShot: 6,
+      magazineSize: 6,
+      reloadTime: 2200,
     },
     sniper: {
       name: 'sniper',
@@ -54,6 +60,8 @@ module.exports = {
       projectileLifetime: 3000,
       spread: 0,
       bulletsPerShot: 1,
+      magazineSize: 5,
+      reloadTime: 2500,
     },
   },
 

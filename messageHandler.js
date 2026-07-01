@@ -4,6 +4,28 @@ const { randomPosition, broadcast, getTopPlayers } = require('./utils');
 const { WEAPONS, MELEE, PLAYER_MAX_HP } = require('./config');
 const log = require('./logger');
 
+// Unlimited magazines, limited bullets per magazine: refills client.ammo to
+// the current weapon's magazineSize after reloadTime. Guards against the
+// client switching weapons or disconnecting mid-reload.
+function startReload(client, ws) {
+  const weaponName = client.rangedWeapon;
+  const weaponDef  = WEAPONS[weaponName] || WEAPONS['gun'];
+
+  client.reloading = true;
+  ws.send(JSON.stringify({
+    type: 'ammo_update', ammo: client.ammo ?? 0, magazineSize: weaponDef.magazineSize, reloading: true,
+  }));
+
+  setTimeout(() => {
+    if (!clients.has(ws) || client.rangedWeapon !== weaponName) return;
+    client.reloading = false;
+    client.ammo = weaponDef.magazineSize;
+    ws.send(JSON.stringify({
+      type: 'ammo_update', ammo: client.ammo, magazineSize: weaponDef.magazineSize, reloading: false,
+    }));
+  }, weaponDef.reloadTime);
+}
+
 function handleMessage(ws, data) {
   const msg = JSON.parse(data);
   const client = clients.get(ws);
@@ -17,6 +39,8 @@ function handleMessage(ws, data) {
     client.rangedWeapon = 'gun';
     client.meleeWeapon  = 'knife';
     client.activeSlot   = 'ranged';
+    client.ammo         = WEAPONS[client.rangedWeapon].magazineSize;
+    client.reloading    = false;
 
     scores.set(client.id, { zombiesKilled: 0, playersKilled: 0 });
 
@@ -29,6 +53,9 @@ function handleMessage(ws, data) {
       activeSlot:   client.activeSlot,
     }));
     ws.send(JSON.stringify({ type: 'hp_update', id: client.id, hp: client.hp, maxHp: PLAYER_MAX_HP }));
+    ws.send(JSON.stringify({
+      type: 'ammo_update', ammo: client.ammo, magazineSize: WEAPONS[client.rangedWeapon].magazineSize, reloading: false,
+    }));
 
     for (const wall of walls.values()) {
       ws.send(JSON.stringify({ type: 'wall_spawn', id: wall.id, x: wall.x, y: wall.y }));
@@ -71,12 +98,32 @@ function handleMessage(ws, data) {
     });
   }
 
+  // ---------- Rechargement manuel (arme à distance) ----------
+  if (msg.type === 'reload' && client.pseudo && client.activeSlot === 'ranged') {
+    const weaponDef = WEAPONS[client.rangedWeapon] || WEAPONS['gun'];
+    if (client.reloading) return;
+    if ((client.ammo ?? weaponDef.magazineSize) >= weaponDef.magazineSize) return;
+    startReload(client, ws);
+  }
+
   // ---------- Tir (arme à distance) ----------
   if (msg.type === 'shoot' && client.pseudo && client.activeSlot === 'ranged') {
     const weaponDef = WEAPONS[client.rangedWeapon] || WEAPONS['gun'];
+
+    if (client.reloading) return;
+    if ((client.ammo ?? weaponDef.magazineSize) <= 0) {
+      startReload(client, ws);
+      return;
+    }
+
     const now = Date.now();
     if (now - client.lastShotAt < weaponDef.fireRate) return;
     client.lastShotAt = now;
+    client.ammo -= 1;
+
+    ws.send(JSON.stringify({
+      type: 'ammo_update', ammo: client.ammo, magazineSize: weaponDef.magazineSize, reloading: false,
+    }));
 
     for (let i = 0; i < weaponDef.bulletsPerShot; i++) {
       const spreadOffset = (Math.random() - 0.5) * 2 * weaponDef.spread;
