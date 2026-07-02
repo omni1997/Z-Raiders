@@ -11,6 +11,7 @@ const {
   ZOMBIE_DAMAGE,
   ZOMBIE_DECISION_INTERVAL,
   ZOMBIE_TARGET_SWITCH_MARGIN,
+  ZOMBIE_MAX_HP,
   WEAPON_SPAWN_INTERVAL,
   MAX_WEAPONS_ON_MAP,
   PLAYER_MAX_HP,
@@ -63,9 +64,12 @@ function startGameLoop() {
   setInterval(() => {
     const id     = 'z-' + randomUUID();
     const pos    = randomOpenPosition();
-    const zombie = { id, x: pos.x, y: pos.y, targetId: null, path: [], nextDecisionAt: 0 };
+    const zombie = {
+      id, x: pos.x, y: pos.y, targetId: null, path: [], nextDecisionAt: 0,
+      hp: ZOMBIE_MAX_HP, maxHp: ZOMBIE_MAX_HP,
+    };
     zombies.set(id, zombie);
-    broadcast({ type: 'zombie_spawn', id: zombie.id, x: zombie.x, y: zombie.y });
+    broadcast({ type: 'zombie_spawn', id: zombie.id, x: zombie.x, y: zombie.y, hp: zombie.hp, maxHp: zombie.maxHp });
   }, ZOMBIE_SPAWN_INTERVAL * 1000);
 
   // Spawn armes au sol
@@ -114,12 +118,16 @@ function startGameLoop() {
 
       for (const [zId, zombie] of zombies) {
         if (distance(proj, zombie) < ZOMBIE_RADIUS + PROJECTILE_RADIUS) {
-          zombies.delete(zId);
-          const ks = scores.get(proj.from) || { zombiesKilled: 0, playersKilled: 0 };
-          ks.zombiesKilled += 1;
-          scores.set(proj.from, ks);
-          broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
-          broadcast({ type: 'zombie_remove', id: zId });
+          zombie.hp = (zombie.hp ?? ZOMBIE_MAX_HP) - (proj.damage || 30);
+          broadcast({ type: 'zombie_hp_update', id: zId, hp: zombie.hp, maxHp: zombie.maxHp });
+          if (zombie.hp <= 0) {
+            zombies.delete(zId);
+            const ks = scores.get(proj.from) || { zombiesKilled: 0, playersKilled: 0 };
+            ks.zombiesKilled += 1;
+            scores.set(proj.from, ks);
+            broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
+            broadcast({ type: 'zombie_remove', id: zId });
+          }
           collided = true; break;
         }
       }

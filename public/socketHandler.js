@@ -75,10 +75,13 @@ socket.addEventListener('message', (event) => {
   }
 
   if (data.type === 'zombie_spawn' && state.gameScene) {
-    state.gameScene.spawnZombie(data.id, data.x, data.y);
+    state.gameScene.spawnZombie(data.id, data.x, data.y, data.hp, data.maxHp);
   }
   if (data.type === 'zombie_move' && state.gameScene) {
     state.gameScene.updateZombie(data.id, data.x, data.y);
+  }
+  if (data.type === 'zombie_hp_update' && state.gameScene) {
+    state.gameScene.updateZombieHp(data.id, data.hp, data.maxHp);
   }
   if (data.type === 'zombie_remove' && state.gameScene) {
     state.gameScene.removeZombie(data.id);

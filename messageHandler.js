@@ -1,7 +1,7 @@
 const { randomUUID } = require('crypto');
 const { clients, projectiles, scores, walls, zombies } = require('./state');
 const { randomPosition, broadcast, getTopPlayers } = require('./utils');
-const { WEAPONS, MELEE, PLAYER_MAX_HP } = require('./config');
+const { WEAPONS, MELEE, PLAYER_MAX_HP, ZOMBIE_MAX_HP } = require('./config');
 const log = require('./logger');
 
 // Unlimited magazines, limited bullets per magazine: refills client.ammo to
@@ -187,14 +187,19 @@ function handleMessage(ws, data) {
       }
 
       // --- Zombie touché ---
-      if (zombies.has(targetId)) {
-        zombies.delete(targetId);
-        log.debug(`killed zombie ${targetId}`);
-        const ks = scores.get(client.id) || { zombiesKilled: 0, playersKilled: 0 };
-        ks.zombiesKilled += 1;
-        scores.set(client.id, ks);
-        broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
-        broadcast({ type: 'zombie_remove', id: targetId });
+      const targetZombie = zombies.get(targetId);
+      if (targetZombie) {
+        targetZombie.hp = (targetZombie.hp ?? ZOMBIE_MAX_HP) - meleeDef.damage;
+        broadcast({ type: 'zombie_hp_update', id: targetId, hp: targetZombie.hp, maxHp: targetZombie.maxHp });
+        if (targetZombie.hp <= 0) {
+          zombies.delete(targetId);
+          log.debug(`killed zombie ${targetId}`);
+          const ks = scores.get(client.id) || { zombiesKilled: 0, playersKilled: 0 };
+          ks.zombiesKilled += 1;
+          scores.set(client.id, ks);
+          broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
+          broadcast({ type: 'zombie_remove', id: targetId });
+        }
       }
     }
 

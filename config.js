@@ -9,6 +9,7 @@ module.exports = {
   ZOMBIE_DAMAGE: 34,         // dégâts par contact (cooldown 1s)
   ZOMBIE_DECISION_INTERVAL: 500, // ms between target/pathfinding re-evaluation
   ZOMBIE_TARGET_SWITCH_MARGIN: 40, // px a new target must be closer by to steal aggro
+  ZOMBIE_MAX_HP: 50,
 
   PLAYER_MAX_HP: 100,
 
