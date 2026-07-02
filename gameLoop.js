@@ -9,29 +9,22 @@ const {
   ZOMBIE_SPEED,
   ZOMBIE_SPAWN_INTERVAL,
   ZOMBIE_DAMAGE,
+  ZOMBIE_DECISION_INTERVAL,
+  ZOMBIE_TARGET_SWITCH_MARGIN,
   WEAPON_SPAWN_INTERVAL,
   MAX_WEAPONS_ON_MAP,
   PLAYER_MAX_HP,
   WEAPONS,
 } = require('./config');
 const { generateBuildings } = require('./buildingLoader');
+const { wallCollision, buildGrid, worldToCell, findPath, hasLineOfSight } = require('./zombieAI');
 
-const WALL_SIZE = 64;
 const WEAPON_TYPES = Object.keys(WEAPONS);
 const WEAPON_PICKUP_RADIUS = 25;
 
 // Dimensions du monde — à ajuster selon votre config
 const WORLD_W = 2000;
 const WORLD_H = 2000;
-
-function wallCollision(obj, wall) {
-  return (
-    obj.x > wall.x - WALL_SIZE / 2 &&
-    obj.x < wall.x + WALL_SIZE / 2 &&
-    obj.y > wall.y - WALL_SIZE / 2 &&
-    obj.y < wall.y + WALL_SIZE / 2
-  );
-}
 
 function respawnClient(client) {
   const newPos = randomPosition();
@@ -53,11 +46,24 @@ function startGameLoop() {
   // pensez aussi à les envoyer dans votre handler 'join' via ws.send)
   broadcast({ type: 'walls_init', walls: buildingWalls });
 
+  // Occupancy grid used for zombie pathfinding around buildings
+  const pathGrid = buildGrid(buildingWalls, WORLD_W, WORLD_H);
+
+  // Picks a random position that doesn't land inside a wall cell
+  function randomOpenPosition(maxAttempts = 20) {
+    for (let i = 0; i < maxAttempts; i++) {
+      const pos  = randomPosition();
+      const cell = worldToCell(pos);
+      if (!pathGrid.grid[cell.row]?.[cell.col]) return pos;
+    }
+    return randomPosition();
+  }
+
   // Spawn zombies
   setInterval(() => {
     const id     = 'z-' + randomUUID();
-    const pos    = randomPosition();
-    const zombie = { id, x: pos.x, y: pos.y, targetId: null };
+    const pos    = randomOpenPosition();
+    const zombie = { id, x: pos.x, y: pos.y, targetId: null, path: [], nextDecisionAt: 0 };
     zombies.set(id, zombie);
     broadcast({ type: 'zombie_spawn', id: zombie.id, x: zombie.x, y: zombie.y });
   }, ZOMBIE_SPAWN_INTERVAL * 1000);
@@ -126,21 +132,47 @@ function startGameLoop() {
 
     // --- Zombies ---
     for (const zombie of zombies.values()) {
-      if (!zombie.targetId || ![...clients.values()].find(c => c.id === zombie.targetId)) {
+      let target = zombie.targetId
+        ? [...clients.values()].find(c => c.id === zombie.targetId)
+        : null;
+
+      // Re-evaluate target and path on a timer instead of every tick (cheaper, steadier movement)
+      if (now >= zombie.nextDecisionAt) {
+        zombie.nextDecisionAt = now + ZOMBIE_DECISION_INTERVAL + Math.random() * 200;
+
         let closest = null, minDist = Infinity;
         for (const client of clients.values()) {
           if (!client.pseudo) continue;
           const d = distance(zombie, client);
-          if (d < minDist) { minDist = d; closest = client.id; }
+          if (d < minDist) { minDist = d; closest = client; }
         }
-        zombie.targetId = closest;
+
+        const currentDist = target ? distance(zombie, target) : Infinity;
+        if (closest && minDist < currentDist - ZOMBIE_TARGET_SWITCH_MARGIN) target = closest;
+
+        zombie.targetId = target ? target.id : null;
+        zombie.path = [];
+
+        if (target && !hasLineOfSight(walls.values(), zombie, target)) {
+          const path = findPath(pathGrid, worldToCell(zombie), worldToCell(target));
+          zombie.path = path || []; // null (unreachable) falls back to a straight chase below
+        }
       }
 
-      const target = [...clients.values()].find(c => c.id === zombie.targetId);
       if (!target) continue;
 
-      const dx  = target.x - zombie.x;
-      const dy  = target.y - zombie.y;
+      // Follow the computed path around obstacles, or go straight when there's a clear line of sight
+      let moveTarget = target;
+      if (zombie.path.length > 0) {
+        moveTarget = zombie.path[0];
+        if (distance(zombie, moveTarget) < ZOMBIE_SPEED / 60 + 4) {
+          zombie.path.shift();
+          moveTarget = zombie.path[0] || target;
+        }
+      }
+
+      const dx  = moveTarget.x - zombie.x;
+      const dy  = moveTarget.y - zombie.y;
       const len = Math.sqrt(dx * dx + dy * dy);
 
       if (len > 0) {
