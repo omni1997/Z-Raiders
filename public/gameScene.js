@@ -10,6 +10,7 @@ const WEAPON_OFFSET_X = 0;
 const WEAPON_OFFSET_Y = 0;
 const KNIFE_RANGE     = 180;
 const PLAYER_MAX_HP   = 100;
+const ZOMBIE_MAX_HP   = 50; // fallback, server sends the authoritative value on spawn
 const BAR_WIDTH       = 40;
 const BAR_HEIGHT      = 5;
 const BAR_OFFSET_Y    = 28;
@@ -208,11 +209,11 @@ export class GameScene extends Phaser.Scene {
       if (d <= KNIFE_RANGE) hitIds.push(pid);
     }
 
-    for (const [zid, zombieSprite] of Object.entries(zombies)) {
-      if (!zombieSprite) continue;
+    for (const [zid, entry] of Object.entries(zombies)) {
+      if (!entry?.sprite) continue;
       const d = Phaser.Math.Distance.Between(
         this.player.x, this.player.y,
-        zombieSprite.x, zombieSprite.y
+        entry.sprite.x, entry.sprite.y
       );
       if (d <= KNIFE_RANGE) hitIds.push(zid);
     }
@@ -291,23 +292,29 @@ export class GameScene extends Phaser.Scene {
     this.laserGraphics.fillCircle(ex, ey, cfg.width * 2);
   }
 
+  _drawHpBar(sprite, hp, maxHp) {
+    const ratio = Phaser.Math.Clamp(hp / maxHp, 0, 1);
+    const sx    = sprite.x - BAR_WIDTH / 2;
+    const sy    = sprite.y - BAR_OFFSET_Y;
+
+    this.hpGraphics.fillStyle(0x222222, 0.75);
+    this.hpGraphics.fillRect(sx, sy, BAR_WIDTH, BAR_HEIGHT);
+    const barColor = ratio > 0.6 ? 0x44ff44 : ratio > 0.3 ? 0xffaa00 : 0xff2222;
+    this.hpGraphics.fillStyle(barColor, 1);
+    this.hpGraphics.fillRect(sx, sy, BAR_WIDTH * ratio, BAR_HEIGHT);
+    this.hpGraphics.lineStyle(1, 0x000000, 0.6);
+    this.hpGraphics.strokeRect(sx, sy, BAR_WIDTH, BAR_HEIGHT);
+  }
+
   _drawAllHpBars() {
     this.hpGraphics.clear();
     for (const entry of Object.values(players)) {
       if (!entry?.sprite) continue;
-      const hp    = entry.hp    ?? PLAYER_MAX_HP;
-      const maxHp = entry.maxHp ?? PLAYER_MAX_HP;
-      const ratio = Phaser.Math.Clamp(hp / maxHp, 0, 1);
-      const sx    = entry.sprite.x - BAR_WIDTH / 2;
-      const sy    = entry.sprite.y - BAR_OFFSET_Y;
-
-      this.hpGraphics.fillStyle(0x222222, 0.75);
-      this.hpGraphics.fillRect(sx, sy, BAR_WIDTH, BAR_HEIGHT);
-      const barColor = ratio > 0.6 ? 0x44ff44 : ratio > 0.3 ? 0xffaa00 : 0xff2222;
-      this.hpGraphics.fillStyle(barColor, 1);
-      this.hpGraphics.fillRect(sx, sy, BAR_WIDTH * ratio, BAR_HEIGHT);
-      this.hpGraphics.lineStyle(1, 0x000000, 0.6);
-      this.hpGraphics.strokeRect(sx, sy, BAR_WIDTH, BAR_HEIGHT);
+      this._drawHpBar(entry.sprite, entry.hp ?? PLAYER_MAX_HP, entry.maxHp ?? PLAYER_MAX_HP);
+    }
+    for (const entry of Object.values(zombies)) {
+      if (!entry?.sprite) continue;
+      this._drawHpBar(entry.sprite, entry.hp ?? ZOMBIE_MAX_HP, entry.maxHp ?? ZOMBIE_MAX_HP);
     }
   }
 
@@ -495,28 +502,29 @@ export class GameScene extends Phaser.Scene {
     if (this.wallGroup) this.physics.add.overlap(bullet, this.wallGroup, () => bullet.destroy());
   }
 
-  spawnZombie(zombieId, x, y) {
+  spawnZombie(zombieId, x, y, hp = ZOMBIE_MAX_HP, maxHp = ZOMBIE_MAX_HP) {
     if (zombies[zombieId]) return;
-    const zombie = this.physics.add.sprite(x, y, 'zombie');
-    zombie.setDepth(4);
-    zombie.setScale(2);
-    zombie.play('zombie_down');
+    const sprite = this.physics.add.sprite(x, y, 'zombie');
+    sprite.setDepth(4);
+    sprite.setScale(2);
+    sprite.play('zombie_down');
 
     // Son d'apparition zombie (un sur deux pour éviter la saturation)
     if (Math.random() < 0.5) {
       if (!this.sounds.zombie.isPlaying) this.sounds.zombie.play();
     }
 
-    zombies[zombieId] = zombie;
+    zombies[zombieId] = { sprite, hp, maxHp };
   }
 
   updateZombie(zombieId, x, y) {
-    const zombie = zombies[zombieId];
-    if (!zombie) return;
+    const entry = zombies[zombieId];
+    if (!entry) return;
+    const sprite = entry.sprite;
 
-    const prevX = zombie.x;
-    const prevY = zombie.y;
-    zombie.setPosition(x, y);
+    const prevX = sprite.x;
+    const prevY = sprite.y;
+    sprite.setPosition(x, y);
 
     const dx = x - prevX;
     const dy = y - prevY;
@@ -528,12 +536,19 @@ export class GameScene extends Phaser.Scene {
     } else {
       anim = dy > 0 ? 'zombie_down' : 'zombie_up';
     }
-    if (zombie.anims.currentAnim?.key !== anim) zombie.play(anim);
+    if (sprite.anims.currentAnim?.key !== anim) sprite.play(anim);
+  }
+
+  updateZombieHp(zombieId, hp, maxHp) {
+    const entry = zombies[zombieId];
+    if (!entry) return;
+    entry.hp    = hp;
+    entry.maxHp = maxHp;
   }
 
   removeZombie(zombieId) {
-    const zombie = zombies[zombieId];
-    if (zombie) { zombie.destroy(); delete zombies[zombieId]; }
+    const entry = zombies[zombieId];
+    if (entry) { entry.sprite.destroy(); delete zombies[zombieId]; }
   }
 
   spawnWeaponOnMap(weaponId, x, y, weaponType) {
