@@ -7,6 +7,8 @@ module.exports = {
   ZOMBIE_SPAWN_INTERVAL: 5,
   ZOMBIE_RADIUS: 18,
   ZOMBIE_DAMAGE: 34,         // dégâts par contact (cooldown 1s)
+  ZOMBIE_DECISION_INTERVAL: 500, // ms between target/pathfinding re-evaluation
+  ZOMBIE_TARGET_SWITCH_MARGIN: 40, // px a new target must be closer by to steal aggro
 
   PLAYER_MAX_HP: 100,
 
