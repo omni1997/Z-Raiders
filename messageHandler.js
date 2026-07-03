@@ -1,7 +1,8 @@
 const { randomUUID } = require('crypto');
-const { clients, projectiles, scores, walls, zombies, globalStats } = require('./state');
+const { clients, projectiles, scores, walls, zombies } = require('./state');
 const { randomPosition, broadcast, getTopPlayers } = require('./utils');
 const { WEAPONS, MELEE, PLAYER_MAX_HP, ZOMBIE_MAX_HP } = require('./config');
+const { getScore, saveScore } = require('./scoreStore');
 const log = require('./logger');
 
 // Unlimited magazines, limited bullets per magazine: refills client.ammo to
@@ -31,6 +32,12 @@ function handleMessage(ws, data) {
   const client = clients.get(ws);
   if (!client) return;
 
+  // ---------- Lookup du score personnel (écran de login) ----------
+  if (msg.type === 'lookup_score') {
+    ws.send(JSON.stringify({ type: 'score_lookup', pseudo: msg.pseudo, ...getScore(msg.pseudo || '') }));
+    return;
+  }
+
   // ---------- Connexion ----------
   if (msg.type === 'pseudo') {
     client.pseudo     = msg.pseudo;
@@ -42,9 +49,11 @@ function handleMessage(ws, data) {
     client.ammo         = WEAPONS[client.rangedWeapon].magazineSize;
     client.reloading    = false;
 
-    scores.set(client.id, { zombiesKilled: 0, playersKilled: 0 });
+    // Reprend le score personnel persisté pour ce pseudo, s'il existe
+    scores.set(client.id, getScore(client.pseudo));
 
     ws.send(JSON.stringify({ type: 'confirm', pseudo: client.pseudo }));
+    ws.send(JSON.stringify({ type: 'score_update', playerId: client.id, ...scores.get(client.id), topPlayers: getTopPlayers() }));
     ws.send(JSON.stringify({ type: 'respawn', id: client.id, x: client.x, y: client.y }));
     ws.send(JSON.stringify({
       type: 'slots_update',
@@ -178,8 +187,7 @@ function handleMessage(ws, data) {
           ks.playersKilled += 1;
           scores.set(client.id, ks);
           broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
-          globalStats.playersKilled += 1;
-          broadcast({ type: 'global_stats', ...globalStats });
+          saveScore(client.pseudo, ks);
           const newPos = randomPosition();
           targetClient.x = newPos.x; targetClient.y = newPos.y; targetClient.hp = PLAYER_MAX_HP;
           broadcast({ type: 'respawn', id: targetClient.id, x: targetClient.x, y: targetClient.y });
@@ -200,8 +208,7 @@ function handleMessage(ws, data) {
           ks.zombiesKilled += 1;
           scores.set(client.id, ks);
           broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
-          globalStats.zombiesKilled += 1;
-          broadcast({ type: 'global_stats', ...globalStats });
+          saveScore(client.pseudo, ks);
           broadcast({ type: 'zombie_remove', id: targetId });
         }
       }

@@ -8,6 +8,21 @@ const sendMsgBtn = document.getElementById('send-msg');
 sendPseudoBtn.addEventListener('click', sendPseudo);
 pseudoInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendPseudo(); });
 
+// Affiche le score personnel persisté pendant que le joueur tape son callsign
+let lookupTimer = null;
+pseudoInput.addEventListener('input', () => {
+  const pseudo = pseudoInput.value.trim();
+  clearTimeout(lookupTimer);
+  if (!pseudo) {
+    document.getElementById('stat-zombies').innerText = 0;
+    document.getElementById('stat-players').innerText = 0;
+    return;
+  }
+  lookupTimer = setTimeout(() => {
+    socket.send(JSON.stringify({ type: 'lookup_score', pseudo }));
+  }, 300);
+});
+
 export function sendPseudo() {
   const value = pseudoInput.value.trim();
   if (value) socket.send(JSON.stringify({ type: 'pseudo', pseudo: value }));

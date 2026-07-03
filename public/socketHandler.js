@@ -12,9 +12,9 @@ socket.addEventListener('message', (event) => {
     state.gameScene.spawnWall(data.id, data.x, data.y);
   }
 
-  if (data.type === 'global_stats') {
-    document.getElementById('global-zombies').innerText = data.zombiesKilled;
-    document.getElementById('global-players').innerText = data.playersKilled;
+  if (data.type === 'score_lookup') {
+    document.getElementById('stat-zombies').innerText = data.zombiesKilled;
+    document.getElementById('stat-players').innerText = data.playersKilled;
   }
 
   if (data.type === 'init') {

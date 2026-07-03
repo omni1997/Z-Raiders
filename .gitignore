@@ -11,6 +11,9 @@ yarn-error.log*
 # Environment variables
 .env
 
+# Persisted player scores
+data/
+
 # Build output
 dist/
 build/
