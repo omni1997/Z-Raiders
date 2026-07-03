@@ -28,6 +28,19 @@ const WEAPON_PICKUP_RADIUS = 25;
 const WORLD_W = 2000;
 const WORLD_H = 2000;
 
+// Fire-and-forget: persists the score then broadcasts the refreshed leaderboard,
+// without blocking the 60Hz game loop on a database round-trip.
+function persistKillAndBroadcast(playerId, ks, killerPseudo) {
+  const save = killerPseudo ? saveScore(killerPseudo, ks) : Promise.resolve();
+  save
+    .then(() => getTopPlayers())
+    .then((topPlayers) => {
+      broadcast({ type: 'score_update', playerId, ...ks, topPlayers });
+      broadcast({ type: 'login_top_players', topPlayers });
+    })
+    .catch((err) => log.error(`Failed to persist score: ${err.message}`));
+}
+
 function respawnClient(client) {
   const newPos = randomPosition();
   client.x  = newPos.x;
@@ -110,9 +123,7 @@ function startGameLoop() {
             ks.playersKilled += 1;
             scores.set(proj.from, ks);
             const killer = [...clients.values()].find(c => c.id === proj.from);
-            if (killer) saveScore(killer.pseudo, ks);
-            broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
-            broadcast({ type: 'login_top_players', topPlayers: getTopPlayers() });
+            persistKillAndBroadcast(proj.from, ks, killer?.pseudo);
             respawnClient(client);
           }
           collided = true; break;
@@ -130,9 +141,7 @@ function startGameLoop() {
             ks.zombiesKilled += 1;
             scores.set(proj.from, ks);
             const killer = [...clients.values()].find(c => c.id === proj.from);
-            if (killer) saveScore(killer.pseudo, ks);
-            broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
-            broadcast({ type: 'login_top_players', topPlayers: getTopPlayers() });
+            persistKillAndBroadcast(proj.from, ks, killer?.pseudo);
             broadcast({ type: 'zombie_remove', id: zId });
           }
           collided = true; break;
