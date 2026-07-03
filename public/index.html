@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Z-RAIDERS</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%A3%EF%B8%8F%3C/text%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
@@ -178,7 +179,7 @@
     #pseudo:focus, .auth-input:focus { border-color:var(--gore); box-shadow:var(--glow); }
     #pseudo::placeholder, .auth-input::placeholder { color:#4a0000; }
 
-    #send {
+    #auth-submit {
       background:var(--blood); color:#fff;
       font-family:'Share Tech Mono',monospace; font-size:11px;
       letter-spacing:2px; text-transform:uppercase;
@@ -186,7 +187,9 @@
       clip-path: polygon(0 0,94% 0,100% 20%,100% 100%,6% 100%,0 80%);
       transition: background .2s, box-shadow .2s;
     }
-    #send:hover { background:var(--gore); box-shadow:var(--glow); }
+    #auth-submit:hover { background:var(--gore); box-shadow:var(--glow); }
+    #auth-submit:disabled,
+    #auth-submit.is-loading { opacity:.5; cursor:wait; }
 
     /* Slots HUD */
     #slots-hud {
@@ -257,6 +260,10 @@
     }
     #top-players li:hover { border-color:var(--gore); color:#fff; }
     #top-players li:first-child { border-color:var(--gore); }
+    #top-players li.empty, #login-top-players li.empty {
+      color:var(--dim); font-style:italic; border-left-color:var(--border);
+    }
+    #top-players li.empty:hover { border-color:var(--border); color:var(--dim); }
 
     /* Chat */
     #chat { flex:1; display:flex; flex-direction:column; overflow:hidden; }
@@ -383,6 +390,16 @@
     }
     #volume-mute:hover, #volume-mute.active { border-color: var(--gore); color: var(--gore); }
     #volume-slider { width: 90px; accent-color: var(--gore); cursor: pointer; }
+
+    /* Small screens: stack the panel below the game instead of side-by-side */
+    @media (max-width: 760px) {
+      #layout { flex-direction: column; }
+      #game-zone { flex: 1 1 55%; border-right: none; border-bottom: 2px solid var(--blood); }
+      #panel { width: 100%; min-width: 0; flex: 1 1 45%; }
+      #login-box { width: min(340px, 92vw); }
+      #volume-control { padding: 4px 8px; }
+      #volume-slider { width: 60px; }
+    }
   </style>
 </head>
 <body>
