@@ -3,7 +3,8 @@ import * as state from './state.js';
 const { players } = state;
 const getId = () => state.id;
 
-import { addMessage, confirmPseudo } from './chat.js';
+import { addMessage } from './chat.js';
+import { confirmAuth, handleAuthError, handleForgotPasswordSent } from './auth.js';
 
 socket.addEventListener('message', (event) => {
   const data = JSON.parse(event.data);
@@ -32,8 +33,16 @@ socket.addEventListener('message', (event) => {
 
   if (data.type === 'confirm') {
     state.setPseudo(data.pseudo);
-    confirmPseudo(data.pseudo);
+    confirmAuth(data.pseudo);
     if (state.gameScene) state.gameScene.spawnPlayer(state.id, state.color);
+  }
+
+  if (data.type === 'auth_error') {
+    handleAuthError(data.message);
+  }
+
+  if (data.type === 'forgot_password_sent') {
+    handleForgotPasswordSent();
   }
 
   if (data.type === 'chat') {

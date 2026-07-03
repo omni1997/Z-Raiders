@@ -1,17 +1,7 @@
 import { socket } from './socket.js';
 
-const pseudoInput = document.getElementById('pseudo');
-const sendPseudoBtn = document.getElementById('send');
 const messageInput = document.getElementById('message');
 const sendMsgBtn = document.getElementById('send-msg');
-
-sendPseudoBtn.addEventListener('click', sendPseudo);
-pseudoInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendPseudo(); });
-
-export function sendPseudo() {
-  const value = pseudoInput.value.trim();
-  if (value) socket.send(JSON.stringify({ type: 'pseudo', pseudo: value }));
-}
 
 sendMsgBtn.addEventListener('click', sendMessage);
 messageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
@@ -46,10 +36,4 @@ export function addMessage(data) {
   div.appendChild(text);
   msgList.appendChild(div);
   msgList.scrollTop = msgList.scrollHeight;
-}
-
-export function confirmPseudo(pseudo) {
-  document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('info').innerText = `▶ ${pseudo}`;
-  document.getElementById('chat').style.display = 'flex';
 }

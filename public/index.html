@@ -168,15 +168,15 @@
     #info { font-size:9px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
     #form { display:flex; flex-direction:column; gap:5px; flex:1; }
 
-    #pseudo {
+    #pseudo, .auth-input {
       background:#1a0000; border:1px solid var(--blood);
       color:var(--text); font-family:'Share Tech Mono',monospace;
       font-size:12px; padding:5px 8px; outline:none;
       clip-path: polygon(0 0,97% 0,100% 15%,100% 100%,3% 100%,0 85%);
       transition: border-color .2s, box-shadow .2s;
     }
-    #pseudo:focus { border-color:var(--gore); box-shadow:var(--glow); }
-    #pseudo::placeholder { color:#4a0000; }
+    #pseudo:focus, .auth-input:focus { border-color:var(--gore); box-shadow:var(--glow); }
+    #pseudo::placeholder, .auth-input::placeholder { color:#4a0000; }
 
     #send {
       background:var(--blood); color:#fff;
@@ -347,8 +347,8 @@
       text-transform:uppercase; text-align:center; margin-bottom:18px;
     }
 
-    #login-box #pseudo { width:100%; margin-bottom:10px; }
-    #login-box #send   { width:100%; padding:8px 10px; font-size:12px; }
+    #login-box .auth-input { width:100%; margin-bottom:10px; }
+    #auth-submit { width:100%; padding:8px 10px; font-size:12px; margin-bottom:10px; }
 
     #login-top-players { list-style:none; display:flex; flex-direction:column; gap:4px; margin-bottom:18px; }
     #login-top-players li {
@@ -356,6 +356,18 @@
       border-left:2px solid var(--blood); color:var(--text);
     }
     #login-top-players li:first-child { border-color:var(--gore); }
+
+    #auth-links { display:flex; flex-direction:column; gap:6px; align-items:center; }
+    #auth-links a {
+      font-size:10px; color:var(--dim); text-decoration:none;
+      letter-spacing:1px; text-transform:uppercase; transition:color .2s;
+    }
+    #auth-links a:hover { color:var(--gore); }
+
+    #auth-error {
+      font-size:10px; color:var(--gore); text-align:center;
+      margin-top:10px; min-height:12px; letter-spacing:1px;
+    }
   </style>
 </head>
 <body>
@@ -367,8 +379,24 @@
     <div id="login-subtitle">SIGNAL DETECTED... SURVIVORS NEEDED</div>
     <div class="section-title" style="font-size:12px;">🏆 Top Survivors</div>
     <ol id="login-top-players"></ol>
-    <input type="text" id="pseudo" placeholder="ENTER CALLSIGN" />
-    <button id="send">⚡ DEPLOY</button>
+
+    <input type="email" id="email" class="auth-input" placeholder="EMAIL" />
+    <div id="password-field">
+      <input type="password" id="password" class="auth-input" placeholder="PASSWORD" />
+    </div>
+    <div id="pseudo-field" style="display:none;">
+      <input type="text" id="pseudo" class="auth-input" placeholder="ENTER CALLSIGN" />
+    </div>
+
+    <button id="auth-submit">⚡ DEPLOY</button>
+
+    <div id="auth-links">
+      <a href="#" id="forgot-link">Forgot password?</a>
+      <a href="#" id="back-to-login" style="display:none;">Back to login</a>
+      <a href="#" id="toggle-mode">Need an account? Sign up</a>
+    </div>
+
+    <div id="auth-error"></div>
   </div>
 </div>
 

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Z-RAIDERS — Reset password</title>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blood: #8b0000; --gore: #ff1a1a; --darker: #050505;
+      --panel: #0f0f0f; --border: #3a0000; --text: #c8c8c8; --dim: #555;
+      --glow: 0 0 8px #cc000088, 0 0 20px #8b000044;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; display: flex; align-items: center; justify-content: center;
+      background: var(--darker); color: var(--text); font-family: 'Share Tech Mono', monospace;
+    }
+    #box {
+      width: 320px; padding: 24px 26px;
+      background: var(--panel); border: 1px solid var(--border); box-shadow: var(--glow);
+    }
+    #title {
+      font-family: 'Creepster', cursive; font-size: 28px; color: var(--gore);
+      text-shadow: var(--glow); letter-spacing: 4px; text-align: center; margin-bottom: 18px;
+    }
+    input {
+      width: 100%; margin-bottom: 10px; background: #1a0000; border: 1px solid var(--blood);
+      color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 12px; padding: 8px 10px; outline: none;
+    }
+    button {
+      width: 100%; background: var(--blood); color: #fff; border: none;
+      font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: 2px;
+      text-transform: uppercase; padding: 8px 10px; cursor: pointer;
+    }
+    button:hover { background: var(--gore); }
+    #status { font-size: 11px; text-align: center; margin-top: 12px; min-height: 14px; }
+    #status.error { color: var(--gore); }
+    #status.ok { color: #44ff44; }
+  </style>
+</head>
+<body>
+  <div id="box">
+    <div id="title">☣ RESET PASSWORD ☣</div>
+    <input type="password" id="password" placeholder="NEW PASSWORD" />
+    <input type="password" id="confirm" placeholder="CONFIRM PASSWORD" />
+    <button id="submit">⚡ RESET</button>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    const statusEl = document.getElementById('status');
+
+    document.getElementById('submit').addEventListener('click', async () => {
+      const password = document.getElementById('password').value;
+      const confirm  = document.getElementById('confirm').value;
+
+      if (!token) { setStatus('Missing reset token.', true); return; }
+      if (password.length < 6) { setStatus('Password must be at least 6 characters.', true); return; }
+      if (password !== confirm) { setStatus('Passwords do not match.', true); return; }
+
+      const res = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStatus('Password reset. You can log in now.', false);
+      } else {
+        setStatus(data.error || 'Something went wrong.', true);
+      }
+    });
+
+    function setStatus(message, isError) {
+      statusEl.textContent = message;
+      statusEl.className = isError ? 'error' : 'ok';
+    }
+  </script>
+</body>
+</html>
