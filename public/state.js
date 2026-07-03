@@ -2,6 +2,7 @@ export let id            = null;
 export let color         = null;
 export let pseudo        = null;
 export let gameScene     = null;
+export let game          = null;
 export let currentWeapon = 'gun';   // conservé pour compatibilité
 export let rangedWeapon  = 'gun';
 export let meleeWeapon   = 'knife';
@@ -18,6 +19,7 @@ export function setId(v)           { id = v; }
 export function setColor(v)        { color = v; }
 export function setPseudo(v)       { pseudo = v; }
 export function setGameScene(v)    { gameScene = v; }
+export function setGame(v)         { game = v; }
 export function setCurrentWeapon(v){ currentWeapon = v; }
 export function setRangedWeapon(v) { rangedWeapon = v; currentWeapon = v; }
 export function setMeleeWeapon(v)  { meleeWeapon = v; }

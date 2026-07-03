@@ -368,9 +368,30 @@
       font-size:10px; color:var(--gore); text-align:center;
       margin-top:10px; min-height:12px; letter-spacing:1px;
     }
+    /* Volume control — visible on every screen (login and in-game) */
+    #volume-control {
+      position: fixed; top: 10px; right: 10px; z-index: 10001;
+      display: flex; align-items: center; gap: 8px;
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 6px 10px;
+      clip-path: polygon(0 0,94% 0,100% 20%,100% 100%,6% 100%,0 80%);
+      box-shadow: var(--glow);
+    }
+    #volume-mute {
+      background: transparent; border: 1px solid var(--blood); color: var(--dim);
+      font-size: 13px; padding: 2px 7px; cursor: pointer; transition: all .2s;
+    }
+    #volume-mute:hover, #volume-mute.active { border-color: var(--gore); color: var(--gore); }
+    #volume-slider { width: 90px; accent-color: var(--gore); cursor: pointer; }
   </style>
 </head>
 <body>
+
+<!-- Contrôle du volume -->
+<div id="volume-control">
+  <button id="volume-mute" title="Mute">🔊</button>
+  <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.6" />
+</div>
 
 <!-- Écran de login -->
 <div id="login-screen">
