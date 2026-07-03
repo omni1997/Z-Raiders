@@ -1,42 +1,29 @@
-const fs = require('fs');
-const path = require('path');
+const db = require('./db');
 
-// Personal scores keyed by pseudo, persisted to disk so a player's totals
-// survive reconnects and server restarts.
-const FILE = path.join(__dirname, 'data', 'scores.json');
+// Personal scores persisted in Postgres so a player's totals survive
+// reconnects and server restarts.
 
-let store;
-try {
-  store = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-} catch {
-  store = {};
+async function getScore(pseudo) {
+  const { rows } = await db.query('SELECT zombies_killed, players_killed FROM scores WHERE pseudo = $1', [pseudo]);
+  if (!rows[0]) return { zombiesKilled: 0, playersKilled: 0 };
+  return { zombiesKilled: rows[0].zombies_killed, playersKilled: rows[0].players_killed };
 }
 
-let saveTimer = null;
-function scheduleSave() {
-  if (saveTimer) return;
-  saveTimer = setTimeout(() => {
-    saveTimer = null;
-    fs.mkdirSync(path.dirname(FILE), { recursive: true });
-    fs.writeFileSync(FILE, JSON.stringify(store));
-  }, 1000);
+async function saveScore(pseudo, score) {
+  await db.query(
+    `INSERT INTO scores (pseudo, zombies_killed, players_killed) VALUES ($1, $2, $3)
+     ON CONFLICT (pseudo) DO UPDATE SET zombies_killed = $2, players_killed = $3`,
+    [pseudo, score.zombiesKilled, score.playersKilled],
+  );
 }
 
-function getScore(pseudo) {
-  const s = store[pseudo];
-  return s ? { ...s } : { zombiesKilled: 0, playersKilled: 0 };
-}
-
-function saveScore(pseudo, score) {
-  store[pseudo] = { zombiesKilled: score.zombiesKilled, playersKilled: score.playersKilled };
-  scheduleSave();
-}
-
-function getTopPlayers(n = 3) {
-  return Object.entries(store)
-    .sort((a, b) => (b[1].zombiesKilled + b[1].playersKilled) - (a[1].zombiesKilled + a[1].playersKilled))
-    .slice(0, n)
-    .map(([pseudo, score]) => ({ pseudo, ...score }));
+async function getTopPlayers(n = 3) {
+  const { rows } = await db.query(
+    `SELECT pseudo, zombies_killed, players_killed FROM scores
+     ORDER BY (zombies_killed + players_killed) DESC LIMIT $1`,
+    [n],
+  );
+  return rows.map((r) => ({ pseudo: r.pseudo, zombiesKilled: r.zombies_killed, playersKilled: r.players_killed }));
 }
 
 module.exports = { getScore, saveScore, getTopPlayers };

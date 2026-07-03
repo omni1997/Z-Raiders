@@ -1,27 +1,8 @@
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
+const db = require('./db');
 
-// Accounts keyed by email, persisted to disk. Passwords are never stored in
-// clear: scrypt with a random per-account salt.
-const FILE = path.join(__dirname, 'data', 'accounts.json');
-
-let store;
-try {
-  store = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-} catch {
-  store = {};
-}
-
-let saveTimer = null;
-function scheduleSave() {
-  if (saveTimer) return;
-  saveTimer = setTimeout(() => {
-    saveTimer = null;
-    fs.mkdirSync(path.dirname(FILE), { recursive: true });
-    fs.writeFileSync(FILE, JSON.stringify(store));
-  }, 1000);
-}
+// Accounts persisted in Postgres. Passwords are never stored in clear:
+// scrypt with a random per-account salt.
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
   const hash = crypto.scryptSync(password, salt, 64).toString('hex');
@@ -38,34 +19,34 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
-function getAccount(email) {
-  return store[normalizeEmail(email)] || null;
+async function getAccount(email) {
+  const { rows } = await db.query('SELECT * FROM accounts WHERE email = $1', [normalizeEmail(email)]);
+  return rows[0] || null;
 }
 
-function pseudoTaken(pseudo) {
-  return Object.values(store).some((acc) => acc.pseudo.toLowerCase() === pseudo.toLowerCase());
+async function pseudoTaken(pseudo) {
+  const { rows } = await db.query('SELECT 1 FROM accounts WHERE LOWER(pseudo) = LOWER($1)', [pseudo]);
+  return rows.length > 0;
 }
 
-function createAccount(email, password, pseudo) {
+async function createAccount(email, password, pseudo) {
   const key = normalizeEmail(email);
   const { salt, hash } = hashPassword(password);
-  store[key] = { email: key, salt, hash, pseudo };
-  scheduleSave();
-  return store[key];
+  await db.query(
+    'INSERT INTO accounts (email, salt, hash, pseudo) VALUES ($1, $2, $3, $4)',
+    [key, salt, hash, pseudo],
+  );
+  return { email: key, salt, hash, pseudo };
 }
 
-function setPassword(email, password) {
+async function setPassword(email, password) {
   const key = normalizeEmail(email);
-  const account = store[key];
-  if (!account) return;
   const { salt, hash } = hashPassword(password);
-  account.salt = salt;
-  account.hash = hash;
-  scheduleSave();
+  await db.query('UPDATE accounts SET salt = $1, hash = $2 WHERE email = $3', [salt, hash, key]);
 }
 
-function checkLogin(email, password) {
-  const account = getAccount(email);
+async function checkLogin(email, password) {
+  const account = await getAccount(email);
   if (!account) return null;
   return verifyPassword(password, account.salt, account.hash) ? account : null;
 }

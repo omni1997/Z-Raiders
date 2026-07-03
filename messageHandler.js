@@ -10,7 +10,7 @@ const log = require('./logger');
 
 // Emplace the player in the world once their account is verified — used by
 // both signup and login so they share the exact same join sequence.
-function beginSession(client, ws, pseudo) {
+async function beginSession(client, ws, pseudo) {
   client.pseudo     = pseudo;
   client.hp         = PLAYER_MAX_HP;
   client.lastShotAt = 0;
@@ -21,10 +21,10 @@ function beginSession(client, ws, pseudo) {
   client.reloading    = false;
 
   // Reprend le score personnel persisté pour ce pseudo, s'il existe
-  scores.set(client.id, getScore(client.pseudo));
+  scores.set(client.id, await getScore(client.pseudo));
 
   ws.send(JSON.stringify({ type: 'confirm', pseudo: client.pseudo }));
-  ws.send(JSON.stringify({ type: 'score_update', playerId: client.id, ...scores.get(client.id), topPlayers: getTopPlayers() }));
+  ws.send(JSON.stringify({ type: 'score_update', playerId: client.id, ...scores.get(client.id), topPlayers: await getTopPlayers() }));
   ws.send(JSON.stringify({ type: 'respawn', id: client.id, x: client.x, y: client.y }));
   ws.send(JSON.stringify({
     type: 'slots_update',
@@ -65,7 +65,7 @@ function startReload(client, ws) {
   }, weaponDef.reloadTime);
 }
 
-function handleMessage(ws, data) {
+async function handleMessage(ws, data) {
   const msg = JSON.parse(data);
   const client = clients.get(ws);
   if (!client) return;
@@ -79,11 +79,11 @@ function handleMessage(ws, data) {
     if (!email.includes('@')) return ws.send(JSON.stringify({ type: 'auth_error', message: 'Invalid email.' }));
     if (password.length < 6) return ws.send(JSON.stringify({ type: 'auth_error', message: 'Password must be at least 6 characters.' }));
     if (!pseudo) return ws.send(JSON.stringify({ type: 'auth_error', message: 'Callsign required.' }));
-    if (getAccount(email)) return ws.send(JSON.stringify({ type: 'auth_error', message: 'An account already exists for this email.' }));
-    if (pseudoTaken(pseudo)) return ws.send(JSON.stringify({ type: 'auth_error', message: 'Callsign already taken.' }));
+    if (await getAccount(email)) return ws.send(JSON.stringify({ type: 'auth_error', message: 'An account already exists for this email.' }));
+    if (await pseudoTaken(pseudo)) return ws.send(JSON.stringify({ type: 'auth_error', message: 'Callsign already taken.' }));
 
-    createAccount(email, password, pseudo);
-    beginSession(client, ws, pseudo);
+    await createAccount(email, password, pseudo);
+    await beginSession(client, ws, pseudo);
   }
 
   // ---------- Connexion à un compte existant ----------
@@ -91,16 +91,16 @@ function handleMessage(ws, data) {
     const email    = normalizeEmail(msg.email);
     const password = msg.password || '';
 
-    const account = checkLogin(email, password);
+    const account = await checkLogin(email, password);
     if (!account) return ws.send(JSON.stringify({ type: 'auth_error', message: 'Invalid email or password.' }));
 
-    beginSession(client, ws, account.pseudo);
+    await beginSession(client, ws, account.pseudo);
   }
 
   // ---------- Mot de passe oublié ----------
   if (msg.type === 'forgot_password') {
     const email = normalizeEmail(msg.email);
-    const account = getAccount(email);
+    const account = await getAccount(email);
     if (account) {
       const token = createToken(email);
       const resetUrl = `${process.env.APP_BASE_URL || 'http://localhost:3000'}/reset.html?token=${token}`;
@@ -224,9 +224,10 @@ function handleMessage(ws, data) {
           const ks = scores.get(client.id) || { zombiesKilled: 0, playersKilled: 0 };
           ks.playersKilled += 1;
           scores.set(client.id, ks);
-          saveScore(client.pseudo, ks);
-          broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
-          broadcast({ type: 'login_top_players', topPlayers: getTopPlayers() });
+          await saveScore(client.pseudo, ks);
+          const topPlayers = await getTopPlayers();
+          broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers });
+          broadcast({ type: 'login_top_players', topPlayers });
           const newPos = randomPosition();
           targetClient.x = newPos.x; targetClient.y = newPos.y; targetClient.hp = PLAYER_MAX_HP;
           broadcast({ type: 'respawn', id: targetClient.id, x: targetClient.x, y: targetClient.y });
@@ -246,9 +247,10 @@ function handleMessage(ws, data) {
           const ks = scores.get(client.id) || { zombiesKilled: 0, playersKilled: 0 };
           ks.zombiesKilled += 1;
           scores.set(client.id, ks);
-          saveScore(client.pseudo, ks);
-          broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
-          broadcast({ type: 'login_top_players', topPlayers: getTopPlayers() });
+          await saveScore(client.pseudo, ks);
+          const topPlayers = await getTopPlayers();
+          broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers });
+          broadcast({ type: 'login_top_players', topPlayers });
           broadcast({ type: 'zombie_remove', id: targetId });
         }
       }
