@@ -17,6 +17,17 @@ socket.addEventListener('message', (event) => {
     document.getElementById('stat-players').innerText = data.playersKilled;
   }
 
+  if (data.type === 'login_top_players') {
+    const list = document.getElementById('login-top-players');
+    list.innerHTML = '';
+    const badges = ['🥇 ', '🥈 ', '🥉 '];
+    data.topPlayers.forEach((p, index) => {
+      const li = document.createElement('li');
+      li.innerText = `${badges[index] || ''}${p.pseudo}: ${p.zombiesKilled} zombies / ${p.playersKilled} players`;
+      list.appendChild(li);
+    });
+  }
+
   if (data.type === 'init') {
     state.setId(data.id);
     state.setColor(data.color);

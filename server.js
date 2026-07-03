@@ -7,6 +7,7 @@ const { clients } = require('./state');
 const { getRandomColor, randomPosition } = require('./utils');
 const { handleMessage } = require('./messageHandler');
 const { startGameLoop } = require('./gameLoop');
+const { getTopPlayers } = require('./scoreStore');
 
 const app = express();
 const server = http.createServer(app);
@@ -21,6 +22,7 @@ wss.on('connection', (ws) => {
 
   clients.set(ws, { id, color, pseudo: null, x: pos.x, y: pos.y });
   ws.send(JSON.stringify({ type: 'init', id, color }));
+  ws.send(JSON.stringify({ type: 'login_top_players', topPlayers: getTopPlayers() }));
 
   ws.on('message', (data) => handleMessage(ws, data));
   ws.on('close', () => clients.delete(ws));

@@ -1,7 +1,7 @@
 const { randomUUID } = require('crypto');
 const { clients, projectiles, zombies, weaponsOnMap, scores, walls } = require('./state');
 const { distance, randomPosition, getTopPlayers, broadcast } = require('./utils');
-const { saveScore } = require('./scoreStore');
+const { saveScore, getTopPlayers: getPersistedTopPlayers } = require('./scoreStore');
 const log = require('./logger');
 const {
   PROJECTILE_RADIUS,
@@ -111,7 +111,10 @@ function startGameLoop() {
             scores.set(proj.from, ks);
             broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
             const killer = [...clients.values()].find(c => c.id === proj.from);
-            if (killer) saveScore(killer.pseudo, ks);
+            if (killer) {
+              saveScore(killer.pseudo, ks);
+              broadcast({ type: 'login_top_players', topPlayers: getPersistedTopPlayers() });
+            }
             respawnClient(client);
           }
           collided = true; break;
@@ -130,7 +133,10 @@ function startGameLoop() {
             scores.set(proj.from, ks);
             broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
             const killer = [...clients.values()].find(c => c.id === proj.from);
-            if (killer) saveScore(killer.pseudo, ks);
+            if (killer) {
+              saveScore(killer.pseudo, ks);
+              broadcast({ type: 'login_top_players', topPlayers: getPersistedTopPlayers() });
+            }
             broadcast({ type: 'zombie_remove', id: zId });
           }
           collided = true; break;

@@ -32,4 +32,11 @@ function saveScore(pseudo, score) {
   scheduleSave();
 }
 
-module.exports = { getScore, saveScore };
+function getTopPlayers(n = 3) {
+  return Object.entries(store)
+    .sort((a, b) => (b[1].zombiesKilled + b[1].playersKilled) - (a[1].zombiesKilled + a[1].playersKilled))
+    .slice(0, n)
+    .map(([pseudo, score]) => ({ pseudo, ...score }));
+}
+
+module.exports = { getScore, saveScore, getTopPlayers };

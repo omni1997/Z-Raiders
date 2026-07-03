@@ -2,7 +2,7 @@ const { randomUUID } = require('crypto');
 const { clients, projectiles, scores, walls, zombies } = require('./state');
 const { randomPosition, broadcast, getTopPlayers } = require('./utils');
 const { WEAPONS, MELEE, PLAYER_MAX_HP, ZOMBIE_MAX_HP } = require('./config');
-const { getScore, saveScore } = require('./scoreStore');
+const { getScore, saveScore, getTopPlayers: getPersistedTopPlayers } = require('./scoreStore');
 const log = require('./logger');
 
 // Unlimited magazines, limited bullets per magazine: refills client.ammo to
@@ -188,6 +188,7 @@ function handleMessage(ws, data) {
           scores.set(client.id, ks);
           broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
           saveScore(client.pseudo, ks);
+          broadcast({ type: 'login_top_players', topPlayers: getPersistedTopPlayers() });
           const newPos = randomPosition();
           targetClient.x = newPos.x; targetClient.y = newPos.y; targetClient.hp = PLAYER_MAX_HP;
           broadcast({ type: 'respawn', id: targetClient.id, x: targetClient.x, y: targetClient.y });
@@ -209,6 +210,7 @@ function handleMessage(ws, data) {
           scores.set(client.id, ks);
           broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
           saveScore(client.pseudo, ks);
+          broadcast({ type: 'login_top_players', topPlayers: getPersistedTopPlayers() });
           broadcast({ type: 'zombie_remove', id: targetId });
         }
       }

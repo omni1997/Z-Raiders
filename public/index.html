@@ -357,6 +357,13 @@
 
     #login-box #pseudo { width:100%; margin-bottom:10px; }
     #login-box #send   { width:100%; padding:8px 10px; font-size:12px; }
+
+    #login-top-players { list-style:none; display:flex; flex-direction:column; gap:4px; margin-bottom:18px; }
+    #login-top-players li {
+      font-size:10px; padding:3px 8px;
+      border-left:2px solid var(--blood); color:var(--text);
+    }
+    #login-top-players li:first-child { border-color:var(--gore); }
   </style>
 </head>
 <body>
@@ -370,6 +377,8 @@
       <div class="global-stat"><span>🧟 Your zombie kills</span><span id="stat-zombies">0</span></div>
       <div class="global-stat"><span>💀 Your player kills</span><span id="stat-players">0</span></div>
     </div>
+    <div class="section-title" style="font-size:12px;">🏆 Top Survivors</div>
+    <ol id="login-top-players"></ol>
     <input type="text" id="pseudo" placeholder="ENTER CALLSIGN" />
     <button id="send">⚡ DEPLOY</button>
   </div>
