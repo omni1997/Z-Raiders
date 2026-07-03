@@ -32,6 +32,11 @@ function setError(message, ok = false) {
   errorEl.style.color = ok ? '#44ff44' : 'var(--gore)';
 }
 
+function setLoading(loading) {
+  submitBtn.disabled = loading;
+  submitBtn.classList.toggle('is-loading', loading);
+}
+
 toggleModeLink.addEventListener('click', (e) => {
   e.preventDefault();
   mode = mode === 'login' ? 'signup' : 'login';
@@ -56,11 +61,14 @@ submitBtn.addEventListener('click', submit);
 });
 
 function submit() {
+  if (submitBtn.disabled) return;
+
   const email    = emailInput.value.trim();
   const password = passwordInput.value;
 
   if (mode === 'forgot') {
     if (!email) return setError('Email required.');
+    setLoading(true);
     socket.send(JSON.stringify({ type: 'forgot_password', email }));
     return;
   }
@@ -70,21 +78,26 @@ function submit() {
   if (mode === 'signup') {
     const pseudo = pseudoInput.value.trim();
     if (!pseudo) return setError('Callsign required.');
+    setLoading(true);
     socket.send(JSON.stringify({ type: 'signup', email, password, pseudo }));
   } else {
+    setLoading(true);
     socket.send(JSON.stringify({ type: 'login', email, password }));
   }
 }
 
 export function handleAuthError(message) {
+  setLoading(false);
   setError(message);
 }
 
 export function handleForgotPasswordSent() {
+  setLoading(false);
   setError('If that email is registered, a reset link was sent.', true);
 }
 
 export function confirmAuth(pseudo) {
+  setLoading(false);
   loginScreen.classList.add('hidden');
   document.getElementById('info').innerText = `▶ ${pseudo}`;
   document.getElementById('chat').style.display = 'flex';

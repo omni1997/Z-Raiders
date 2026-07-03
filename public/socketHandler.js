@@ -14,14 +14,7 @@ socket.addEventListener('message', (event) => {
   }
 
   if (data.type === 'login_top_players') {
-    const list = document.getElementById('login-top-players');
-    list.innerHTML = '';
-    const badges = ['🥇 ', '🥈 ', '🥉 '];
-    data.topPlayers.forEach((p, index) => {
-      const li = document.createElement('li');
-      li.innerText = `${badges[index] || ''}${p.pseudo}: ${p.zombiesKilled} zombies / ${p.playersKilled} players`;
-      list.appendChild(li);
-    });
+    renderTopPlayers(document.getElementById('login-top-players'), data.topPlayers);
   }
 
   if (data.type === 'init') {
@@ -119,16 +112,26 @@ socket.addEventListener('message', (event) => {
       document.getElementById('my-score').innerText =
         `${data.zombiesKilled} zombies / ${data.playersKilled} players`;
     }
-    const topList = document.getElementById('top-players');
-    topList.innerHTML = '';
-    data.topPlayers.forEach((p, index) => {
-      const li = document.createElement('li');
-      const badges = ['🥇 ', '🥈 ', '🥉 '];
-      li.innerText = `${badges[index] || ''}${p.pseudo}: ${p.zombiesKilled} zombies / ${p.playersKilled} players`;
-      topList.appendChild(li);
-    });
+    renderTopPlayers(document.getElementById('top-players'), data.topPlayers);
   }
 });
+
+function renderTopPlayers(list, topPlayers) {
+  list.innerHTML = '';
+  if (!topPlayers.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.innerText = 'No survivors yet...';
+    list.appendChild(li);
+    return;
+  }
+  const badges = ['🥇 ', '🥈 ', '🥉 '];
+  topPlayers.forEach((p, index) => {
+    const li = document.createElement('li');
+    li.innerText = `${badges[index] || ''}${p.pseudo}: ${p.zombiesKilled} zombies / ${p.playersKilled} players`;
+    list.appendChild(li);
+  });
+}
 
 function updateSlotsHUD(data) {
   const slot1El = document.getElementById('slot-ranged');
