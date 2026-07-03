@@ -7,4 +7,4 @@ npm install ws express
 
 
 # RUN SERVER
-node server.js
+node src/server.js
