@@ -1,8 +1,8 @@
 const { randomUUID } = require('crypto');
 const { clients, projectiles, scores, walls, zombies } = require('./state');
-const { randomPosition, broadcast, getTopPlayers } = require('./utils');
+const { randomPosition, broadcast } = require('./utils');
 const { WEAPONS, MELEE, PLAYER_MAX_HP, ZOMBIE_MAX_HP } = require('./config');
-const { getScore, saveScore, getTopPlayers: getPersistedTopPlayers } = require('./scoreStore');
+const { getScore, saveScore, getTopPlayers } = require('./scoreStore');
 const { getAccount, pseudoTaken, createAccount, checkLogin, normalizeEmail } = require('./accountStore');
 const { createToken } = require('./resetTokens');
 const { sendPasswordResetEmail } = require('./mailer');
@@ -224,9 +224,9 @@ function handleMessage(ws, data) {
           const ks = scores.get(client.id) || { zombiesKilled: 0, playersKilled: 0 };
           ks.playersKilled += 1;
           scores.set(client.id, ks);
-          broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
           saveScore(client.pseudo, ks);
-          broadcast({ type: 'login_top_players', topPlayers: getPersistedTopPlayers() });
+          broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
+          broadcast({ type: 'login_top_players', topPlayers: getTopPlayers() });
           const newPos = randomPosition();
           targetClient.x = newPos.x; targetClient.y = newPos.y; targetClient.hp = PLAYER_MAX_HP;
           broadcast({ type: 'respawn', id: targetClient.id, x: targetClient.x, y: targetClient.y });
@@ -246,9 +246,9 @@ function handleMessage(ws, data) {
           const ks = scores.get(client.id) || { zombiesKilled: 0, playersKilled: 0 };
           ks.zombiesKilled += 1;
           scores.set(client.id, ks);
-          broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
           saveScore(client.pseudo, ks);
-          broadcast({ type: 'login_top_players', topPlayers: getPersistedTopPlayers() });
+          broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
+          broadcast({ type: 'login_top_players', topPlayers: getTopPlayers() });
           broadcast({ type: 'zombie_remove', id: targetId });
         }
       }

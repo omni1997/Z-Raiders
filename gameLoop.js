@@ -1,7 +1,7 @@
 const { randomUUID } = require('crypto');
 const { clients, projectiles, zombies, weaponsOnMap, scores, walls } = require('./state');
-const { distance, randomPosition, getTopPlayers, broadcast } = require('./utils');
-const { saveScore, getTopPlayers: getPersistedTopPlayers } = require('./scoreStore');
+const { distance, randomPosition, broadcast } = require('./utils');
+const { saveScore, getTopPlayers } = require('./scoreStore');
 const log = require('./logger');
 const {
   PROJECTILE_RADIUS,
@@ -109,12 +109,10 @@ function startGameLoop() {
             const ks = scores.get(proj.from) || { zombiesKilled: 0, playersKilled: 0 };
             ks.playersKilled += 1;
             scores.set(proj.from, ks);
-            broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
             const killer = [...clients.values()].find(c => c.id === proj.from);
-            if (killer) {
-              saveScore(killer.pseudo, ks);
-              broadcast({ type: 'login_top_players', topPlayers: getPersistedTopPlayers() });
-            }
+            if (killer) saveScore(killer.pseudo, ks);
+            broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
+            broadcast({ type: 'login_top_players', topPlayers: getTopPlayers() });
             respawnClient(client);
           }
           collided = true; break;
@@ -131,12 +129,10 @@ function startGameLoop() {
             const ks = scores.get(proj.from) || { zombiesKilled: 0, playersKilled: 0 };
             ks.zombiesKilled += 1;
             scores.set(proj.from, ks);
-            broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
             const killer = [...clients.values()].find(c => c.id === proj.from);
-            if (killer) {
-              saveScore(killer.pseudo, ks);
-              broadcast({ type: 'login_top_players', topPlayers: getPersistedTopPlayers() });
-            }
+            if (killer) saveScore(killer.pseudo, ks);
+            broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
+            broadcast({ type: 'login_top_players', topPlayers: getTopPlayers() });
             broadcast({ type: 'zombie_remove', id: zId });
           }
           collided = true; break;

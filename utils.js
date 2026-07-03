@@ -1,5 +1,5 @@
 const { MAP_WIDTH, MAP_HEIGHT } = require('./config');
-const { clients, scores } = require('./state');
+const { clients } = require('./state');
 
 function getRandomColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
@@ -18,18 +18,8 @@ function distance(a, b) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function getTopPlayers() {
-  return [...scores.entries()]
-    .sort((a, b) => (b[1].zombiesKilled + b[1].playersKilled) - (a[1].zombiesKilled + a[1].playersKilled))
-    .slice(0, 3)
-    .map(([playerId, score]) => {
-      const client = [...clients.values()].find(c => c.id === playerId);
-      return { pseudo: client?.pseudo || playerId, ...score };
-    });
-}
-
 function broadcast(payload) {
   for (const ws of clients.keys()) ws.send(JSON.stringify(payload));
 }
 
-module.exports = { getRandomColor, randomPosition, distance, getTopPlayers, broadcast };
+module.exports = { getRandomColor, randomPosition, distance, broadcast };
