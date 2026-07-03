@@ -1,7 +1,7 @@
 {
   "name": "z-raiders",
   "version": "1.0.0",
-  "description": "___ ### 🧟‍♂️ **Game Overview (IN PROGRESS)**",
+  "description": "A top-down multiplayer zombie survival game.",
   "main": "src/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

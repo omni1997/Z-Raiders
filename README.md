@@ -1,62 +1,63 @@
 # Z-Raiders
-___
-### 🧟‍♂️ **Game Overview (IN PROGRESS)**
 
-A **2.5D** game in a **zombie** setting.
+A top-down multiplayer zombie survival game. Players connect over WebSocket, fight off zombies and each other on a shared map, and keep a persistent kill score tied to their account.
 
-The **goal of the game** is to **survive** in a map infested with **hordes of zombies** and other **hostile players**.
+## Features
 
-A player can **join or create their own group of survivors** to face the outside world and other players.
+- Account creation, login, and email-based password reset
+- Real-time multiplayer over WebSocket
+- Zombies with pathfinding AI that navigate around buildings
+- Ranged weapons (gun, rifle, shotgun, sniper) with magazines and reload, plus a permanent melee knife
+- HP bars for players and zombies
+- Persistent per-account score and a top-3 leaderboard, shown on the login screen and in-game
+- In-game chat
+- Volume control, visible on every screen
 
-The **zombies will come in several types**, each with **their own abilities** and **weaknesses**.
-They can **drop loot** on the ground, which players can **collect**, either by killing them or by fighting other players to steal it.
+## Tech stack
 
-Players will be able to **build their own base** using gathered materials: **wood**, **bricks**, **metal**.
+- Backend: Node.js, Express, `ws` (WebSocket), PostgreSQL
+- Frontend: Phaser 3
+- Nginx as a reverse proxy in front of the app
+- Docker Compose to run the app, database, and proxy together
 
----
+## Project structure
 
-### 🔫 **Weapons and Equipment**
+```
+src/       Backend: server, game loop, message handling, persistence
+public/    Frontend: Phaser scene, UI, client-side scripts
+```
 
-Several types of weapons will be available:
+## Running the project
 
-* **Pistol**
-* **SMG**
-* **Assault rifle**
-* **Shotgun**
-* **Bazooka**
-* **Grenade launcher**
-* **Grenade**
-* **Melee weapon**
+### With Docker (recommended)
 
-Each weapon will have its own **rarity level** (common, rare, epic, legendary...).
+```
+cp .env.example .env
+docker compose up --build
+```
 
-> It will also be possible to **equip weapons** with attachments: **scope, suppressor, grip, extended magazine**, etc. *(to be confirmed)*
+The game is served at `http://localhost:8080`. Without SMTP credentials in `.env`, the app still runs, but password-reset emails won't be sent.
 
----
+### Without Docker
 
-### 🎯 **Game Mode**
+Requires Node.js and a running PostgreSQL instance.
 
-The game will be a **Battle Royale**:
+```
+npm install
+cp .env.example .env   # point POSTGRES_* at your local database
+node src/server.js
+```
 
-* A map that **gradually shrinks**
-* **Last survivors win**
-* **Cooperation between players** through alliances is possible
+## Known issues
 
----
+- Melee hit detection is still client-authoritative and should be moved to the server.
 
-### 🧪 **Version 0.1**
+## Roadmap
 
-* Join a game
-* Move a character
-* Pick up a weapon
-* Shoot other entities
-* Add basic zombies
-* Add basic obstacles
-* Add sprites
-* Add sound
-* Add buildings
-* Fix zombie/obstacle hitbox
+Longer-term direction for the game, not yet implemented:
 
-#### Known issues / TODO
-
-* Melee hit detection is still client-authoritative and must be moved to the server.
+- Battle royale mode with a shrinking map
+- Player groups/alliances
+- Base building with gathered materials (wood, bricks, metal)
+- Weapon rarity tiers and attachments (scope, suppressor, grip, extended magazine)
+- Additional zombie types with distinct abilities
