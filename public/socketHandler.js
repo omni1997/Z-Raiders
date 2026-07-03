@@ -12,11 +12,6 @@ socket.addEventListener('message', (event) => {
     state.gameScene.spawnWall(data.id, data.x, data.y);
   }
 
-  if (data.type === 'score_lookup') {
-    document.getElementById('stat-zombies').innerText = data.zombiesKilled;
-    document.getElementById('stat-players').innerText = data.playersKilled;
-  }
-
   if (data.type === 'login_top_players') {
     const list = document.getElementById('login-top-players');
     list.innerHTML = '';

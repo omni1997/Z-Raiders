@@ -347,14 +347,6 @@
       text-transform:uppercase; text-align:center; margin-bottom:18px;
     }
 
-    #global-stats { display:flex; flex-direction:column; gap:6px; margin-bottom:20px; }
-    .global-stat {
-      display:flex; justify-content:space-between; align-items:center;
-      font-size:12px; padding:6px 10px; background:#1a0000;
-      border-left:3px solid var(--gore); letter-spacing:1px;
-    }
-    .global-stat span:last-child { color:var(--gore); font-weight:bold; }
-
     #login-box #pseudo { width:100%; margin-bottom:10px; }
     #login-box #send   { width:100%; padding:8px 10px; font-size:12px; }
 
@@ -373,10 +365,6 @@
   <div id="login-box">
     <div id="login-title">☣ Z-RAIDERS ☣</div>
     <div id="login-subtitle">SIGNAL DETECTED... SURVIVORS NEEDED</div>
-    <div id="global-stats">
-      <div class="global-stat"><span>🧟 Your zombie kills</span><span id="stat-zombies">0</span></div>
-      <div class="global-stat"><span>💀 Your player kills</span><span id="stat-players">0</span></div>
-    </div>
     <div class="section-title" style="font-size:12px;">🏆 Top Survivors</div>
     <ol id="login-top-players"></ol>
     <input type="text" id="pseudo" placeholder="ENTER CALLSIGN" />

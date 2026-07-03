@@ -32,12 +32,6 @@ function handleMessage(ws, data) {
   const client = clients.get(ws);
   if (!client) return;
 
-  // ---------- Lookup du score personnel (écran de login) ----------
-  if (msg.type === 'lookup_score') {
-    ws.send(JSON.stringify({ type: 'score_lookup', pseudo: msg.pseudo, ...getScore(msg.pseudo || '') }));
-    return;
-  }
-
   // ---------- Connexion ----------
   if (msg.type === 'pseudo') {
     client.pseudo     = msg.pseudo;
