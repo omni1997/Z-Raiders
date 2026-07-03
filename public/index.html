@@ -320,9 +320,60 @@
       border-radius:0 0 3px 3px;
       animation: drip linear infinite;
     }
+
+    /* Login screen */
+    #login-screen {
+      position:fixed; inset:0; z-index:10000;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(5,5,5,0.92);
+      transition: opacity .4s ease;
+    }
+    #login-screen.hidden { opacity:0; pointer-events:none; }
+
+    #login-box {
+      width:340px; padding:24px 26px;
+      background:var(--panel); border:1px solid var(--border);
+      clip-path: polygon(0 0,96% 0,100% 6%,100% 100%,4% 100%,0 94%);
+      box-shadow: var(--glow);
+    }
+
+    #login-title {
+      font-family:'Creepster',cursive; font-size:34px;
+      color:var(--gore); text-shadow:var(--glow);
+      letter-spacing:5px; text-align:center; margin-bottom:4px;
+    }
+    #login-subtitle {
+      font-size:10px; color:var(--dim); letter-spacing:2px;
+      text-transform:uppercase; text-align:center; margin-bottom:18px;
+    }
+
+    #global-stats { display:flex; flex-direction:column; gap:6px; margin-bottom:20px; }
+    .global-stat {
+      display:flex; justify-content:space-between; align-items:center;
+      font-size:12px; padding:6px 10px; background:#1a0000;
+      border-left:3px solid var(--gore); letter-spacing:1px;
+    }
+    .global-stat span:last-child { color:var(--gore); font-weight:bold; }
+
+    #login-box #pseudo { width:100%; margin-bottom:10px; }
+    #login-box #send   { width:100%; padding:8px 10px; font-size:12px; }
   </style>
 </head>
 <body>
+
+<!-- Écran de login -->
+<div id="login-screen">
+  <div id="login-box">
+    <div id="login-title">☣ Z-RAIDERS ☣</div>
+    <div id="login-subtitle">SIGNAL DETECTED... SURVIVORS NEEDED</div>
+    <div id="global-stats">
+      <div class="global-stat"><span>🧟 Zombies eliminated</span><span id="global-zombies">0</span></div>
+      <div class="global-stat"><span>💀 Players eliminated</span><span id="global-players">0</span></div>
+    </div>
+    <input type="text" id="pseudo" placeholder="ENTER CALLSIGN" />
+    <button id="send">⚡ DEPLOY</button>
+  </div>
+</div>
 
 <div id="layout">
 
@@ -353,8 +404,6 @@
         <div id="color-box"></div>
         <div id="form">
           <div id="info">AWAITING SIGNAL...</div>
-          <input type="text" id="pseudo" placeholder="ENTER CALLSIGN" />
-          <button id="send">⚡ DEPLOY</button>
           <div id="slots-hud">
             <div id="slot-ranged" class="slot slot-active">🔫 GUN</div>
             <div id="slot-melee"  class="slot">🔪 KNIFE</div>

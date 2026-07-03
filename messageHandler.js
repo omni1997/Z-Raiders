@@ -1,5 +1,5 @@
 const { randomUUID } = require('crypto');
-const { clients, projectiles, scores, walls, zombies } = require('./state');
+const { clients, projectiles, scores, walls, zombies, globalStats } = require('./state');
 const { randomPosition, broadcast, getTopPlayers } = require('./utils');
 const { WEAPONS, MELEE, PLAYER_MAX_HP, ZOMBIE_MAX_HP } = require('./config');
 const log = require('./logger');
@@ -178,6 +178,8 @@ function handleMessage(ws, data) {
           ks.playersKilled += 1;
           scores.set(client.id, ks);
           broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
+          globalStats.playersKilled += 1;
+          broadcast({ type: 'global_stats', ...globalStats });
           const newPos = randomPosition();
           targetClient.x = newPos.x; targetClient.y = newPos.y; targetClient.hp = PLAYER_MAX_HP;
           broadcast({ type: 'respawn', id: targetClient.id, x: targetClient.x, y: targetClient.y });
@@ -198,6 +200,8 @@ function handleMessage(ws, data) {
           ks.zombiesKilled += 1;
           scores.set(client.id, ks);
           broadcast({ type: 'score_update', playerId: client.id, ...ks, topPlayers: getTopPlayers() });
+          globalStats.zombiesKilled += 1;
+          broadcast({ type: 'global_stats', ...globalStats });
           broadcast({ type: 'zombie_remove', id: targetId });
         }
       }

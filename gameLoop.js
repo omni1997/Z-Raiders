@@ -1,5 +1,5 @@
 const { randomUUID } = require('crypto');
-const { clients, projectiles, zombies, weaponsOnMap, scores, walls } = require('./state');
+const { clients, projectiles, zombies, weaponsOnMap, scores, walls, globalStats } = require('./state');
 const { distance, randomPosition, getTopPlayers, broadcast } = require('./utils');
 const log = require('./logger');
 const {
@@ -109,6 +109,8 @@ function startGameLoop() {
             ks.playersKilled += 1;
             scores.set(proj.from, ks);
             broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
+            globalStats.playersKilled += 1;
+            broadcast({ type: 'global_stats', ...globalStats });
             respawnClient(client);
           }
           collided = true; break;
@@ -126,6 +128,8 @@ function startGameLoop() {
             ks.zombiesKilled += 1;
             scores.set(proj.from, ks);
             broadcast({ type: 'score_update', playerId: proj.from, ...ks, topPlayers: getTopPlayers() });
+            globalStats.zombiesKilled += 1;
+            broadcast({ type: 'global_stats', ...globalStats });
             broadcast({ type: 'zombie_remove', id: zId });
           }
           collided = true; break;

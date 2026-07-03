@@ -49,12 +49,7 @@ export function addMessage(data) {
 }
 
 export function confirmPseudo(pseudo) {
-  pseudoInput.remove();
-  sendPseudoBtn.remove();
-
-  const confirmed = document.createElement('div');
-  confirmed.style.cssText = 'font-size:11px; color:#cc0000; letter-spacing:2px; text-transform:uppercase;';
-  confirmed.innerText = `▶ ${pseudo}`;
-  document.getElementById('form').prepend(confirmed);
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('info').innerText = `▶ ${pseudo}`;
   document.getElementById('chat').style.display = 'flex';
 }

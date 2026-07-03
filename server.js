@@ -3,7 +3,7 @@ const http = require('http');
 const { WebSocketServer } = require('ws');
 const { randomUUID } = require('crypto');
 
-const { clients } = require('./state');
+const { clients, globalStats } = require('./state');
 const { getRandomColor, randomPosition } = require('./utils');
 const { handleMessage } = require('./messageHandler');
 const { startGameLoop } = require('./gameLoop');
@@ -21,6 +21,7 @@ wss.on('connection', (ws) => {
 
   clients.set(ws, { id, color, pseudo: null, x: pos.x, y: pos.y });
   ws.send(JSON.stringify({ type: 'init', id, color }));
+  ws.send(JSON.stringify({ type: 'global_stats', ...globalStats }));
 
   ws.on('message', (data) => handleMessage(ws, data));
   ws.on('close', () => clients.delete(ws));
